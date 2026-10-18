@@ -328,7 +328,7 @@ function initPartyPackage() {
     
     const selectedInflatable = document.querySelector('input[name="inflatable-choice"]:checked').value;
     const selectedRadio = document.querySelector('input[name="inflatable-choice"]:checked');
-    const inflatableName = selectedInflatable === 'magic-castle' ? 'Magic Castle' : 'SuperHero Combo';
+    const inflatableName = selectedInflatable === 'magic-castle' ? 'Magic Castle' : 'Super Hero Duo Combo';
     const selectedImage = selectedRadio.getAttribute('data-image'); // L'IMAGE CORRECTE!
     
     addToCart({
@@ -350,5 +350,5 @@ document.addEventListener('DOMContentLoaded', function () {
   initFAQ();
   initHamburger();
   initCountdown();
-  initPartyPackage();  // ← NOUVEAU
+  initPartyPackage();
 });

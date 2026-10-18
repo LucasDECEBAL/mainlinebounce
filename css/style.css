@@ -1444,3 +1444,11 @@ ul   { list-style: none; }
   color: #ff69b4;
   opacity: 0.6;
 }
+
+/* ============================================
+   DESCRIPTION SUR CARTE PRODUIT (Silent Disco)
+   ============================================ */
+.product-card .desc {
+  font-size: 0.9rem;
+  color: var(--color-gray);
+}
