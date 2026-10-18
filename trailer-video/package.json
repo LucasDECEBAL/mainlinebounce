@@ -1,0 +1,24 @@
+{
+  "name": "mainlinebounce-trailer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Main Line Bounce promo trailer built with Remotion",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render TrailerLandscape out/trailer-landscape.mp4",
+    "render:vertical": "remotion render TrailerVertical out/trailer-vertical.mp4",
+    "still": "remotion still TrailerLandscape out/cover.png --frame=60"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.5.0"
+  }
+}
