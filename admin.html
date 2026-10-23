@@ -312,6 +312,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="dates">📅 Blocked dates</button>
         <button class="tab" data-tab="banners">🖼️ Banners</button>
+        <button class="tab" data-tab="faq">❓ FAQ</button>
         <button class="tab" data-tab="articles">🎈 Products</button>
       </div>
 
@@ -352,6 +353,35 @@
           <div id="bannersForm"></div>
           <button class="block-btn" id="saveBannersBtn">💾 Save banners</button>
           <div class="status" id="bannerStatus"></div>
+        </div>
+      </div>
+
+      <!-- ---------- FAQ TAB ---------- -->
+      <div class="tab-panel" id="tab-faq" style="display:none;">
+        <div class="box">
+          <h3>FAQ</h3>
+          <div id="faqTable"></div>
+          <button class="block-btn" id="newFaqBtn">➕ New question</button>
+        </div>
+
+        <div class="box" id="faqFormBox" style="display:none;">
+          <h3 id="faqFormTitle">New question</h3>
+          <input type="hidden" id="f-id">
+
+          <label>Question</label>
+          <input type="text" id="f-question" maxlength="300">
+
+          <label>Answer</label>
+          <textarea id="f-answer" rows="6" maxlength="3000"></textarea>
+
+          <label>Position (1, 2, 3…)</label>
+          <input type="number" id="f-position" min="1" max="99" value="1">
+
+          <div class="form-actions">
+            <button class="block-btn" id="saveFaqBtn" style="margin-top:8px;">💾 Save</button>
+            <button class="unblock-btn" id="cancelFaqBtn" style="margin-top:8px;">Cancel</button>
+          </div>
+          <div class="status" id="faqStatus"></div>
         </div>
       </div>
 
@@ -525,6 +555,7 @@
       document.getElementById("logoutBtn").style.display = "inline-block";
 
       renderBannersForm();
+      renderFaqAdmin();
       renderArticles();
       loadBlocked();
     }
@@ -615,6 +646,116 @@
       });
 
       await saveContent(document.getElementById("bannerStatus"), "Banners saved");
+    }
+
+    /* ============================================
+       FAQ
+       ============================================ */
+    function renderFaqAdmin() {
+      const root = document.getElementById("faqTable");
+      const items = (content.faq || []).slice().sort(function (a, b) {
+        return a.position - b.position;
+      });
+
+      if (!items.length) {
+        root.innerHTML = '<p style="color:var(--color-gray);">No FAQ yet. Click "New question".</p>';
+        return;
+      }
+
+      const rows = items.map(function (f) {
+        return (
+          "<tr>" +
+            "<td>" + f.position + "</td>" +
+            "<td><strong>" + escapeHtml(f.question) + "</strong></td>" +
+            '<td style="white-space:nowrap;">' +
+              '<button class="row-btn edit" data-faq-edit="' + escapeAttr(f.id) + '">Edit</button>' +
+              '<button class="row-btn del" data-faq-del="' + escapeAttr(f.id) + '">Delete</button>' +
+            "</td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      root.innerHTML =
+        '<table class="articles-table">' +
+          "<thead><tr><th>Pos.</th><th>Question</th><th></th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+        "</table>";
+
+      root.querySelectorAll("[data-faq-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openFaqForm(btn.getAttribute("data-faq-edit"));
+        });
+      });
+
+      root.querySelectorAll("[data-faq-del]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          if (!confirm("Delete this question?")) return;
+
+          const id = btn.getAttribute("data-faq-del");
+          content.faq = content.faq.filter(function (f) { return f.id !== id; });
+
+          const ok = await saveContent(document.getElementById("faqStatus"), "Question deleted");
+          if (ok) {
+            renderFaqAdmin();
+            document.getElementById("faqFormBox").style.display = "none";
+          }
+        });
+      });
+    }
+
+    function openFaqForm(id) {
+      const box = document.getElementById("faqFormBox");
+      box.style.display = "block";
+
+      const item = id
+        ? (content.faq || []).find(function (f) { return f.id === id; })
+        : null;
+
+      document.getElementById("faqFormTitle").textContent = item ? "Edit question" : "New question";
+      document.getElementById("f-id").value = item ? item.id : "";
+      document.getElementById("f-question").value = item ? item.question : "";
+      document.getElementById("f-answer").value = item ? item.answer : "";
+      document.getElementById("f-position").value = item ? item.position : 1;
+      document.getElementById("faqStatus").textContent = "";
+
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function saveFaq() {
+      const status = document.getElementById("faqStatus");
+      const question = document.getElementById("f-question").value.trim();
+
+      if (!question) {
+        status.textContent = "❌ Question is required";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const existingId = document.getElementById("f-id").value;
+      const id = existingId || "faq-" + slugify(question) + "-" + Date.now().toString(36);
+
+      const item = {
+        id: id,
+        question: question,
+        answer: document.getElementById("f-answer").value.trim(),
+        position: parseInt(document.getElementById("f-position").value, 10) || 1
+      };
+
+      if (!Array.isArray(content.faq)) content.faq = [];
+      const index = content.faq.findIndex(function (f) { return f.id === id; });
+      if (index >= 0) {
+        content.faq[index] = item;
+      } else {
+        content.faq.push(item);
+      }
+
+      const ok = await saveContent(status, "Question saved");
+      if (ok) {
+        renderFaqAdmin();
+        openFaqForm(item.id);
+        status.textContent = "✅ Question saved";
+        status.style.color = "#27ae60";
+      }
     }
 
     /* ============================================
@@ -920,6 +1061,14 @@
     });
     document.getElementById("newArticleBtn").addEventListener("click", function () {
       openArticleForm(null);
+    });
+
+    document.getElementById("saveFaqBtn").addEventListener("click", saveFaq);
+    document.getElementById("cancelFaqBtn").addEventListener("click", function () {
+      document.getElementById("faqFormBox").style.display = "none";
+    });
+    document.getElementById("newFaqBtn").addEventListener("click", function () {
+      openFaqForm(null);
     });
 
     document.querySelectorAll(".tab").forEach(function (tab) {

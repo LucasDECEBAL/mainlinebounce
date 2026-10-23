@@ -180,6 +180,56 @@ const DEFAULT_CONTENT = {
       addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
     },
   ],
+  faq: [
+    {
+      id: "booking-advance",
+      question: "How far in advance should I book?",
+      answer: "We recommend booking as early as possible, especially for weekends and summer months. Popular dates fill up fast — a 2–3 week advance notice is ideal, but we always try to accommodate last-minute requests when available.",
+      position: 1,
+    },
+    {
+      id: "delivery-areas",
+      question: "What areas do you deliver to?",
+      answer: "We proudly serve the Main Line area and surrounding communities in the Greater Philadelphia region. Please call us at (267) 405-3125 to confirm delivery availability for your specific location.",
+      position: 2,
+    },
+    {
+      id: "rain-policy",
+      question: "What happens if it rains on my event day?",
+      answer: "Safety is our top priority. In case of heavy rain, strong winds, or severe weather, we will work with you to reschedule your rental at no extra charge. Light drizzle may be fine for non-water inflatables — just give us a call and we'll advise you.",
+      position: 3,
+    },
+    {
+      id: "payment-methods",
+      question: "What payment methods do you accept?",
+      answer: "We accept cash, Zelle, Venmo, and major credit/debit cards. A deposit is required at the time of booking to secure your date. The remaining balance is due on the day of your event before setup.",
+      position: 4,
+    },
+    {
+      id: "rental-period",
+      question: "How long is the rental period?",
+      answer: "Our standard rental includes a full-day use (typically up to 6–8 hours). We drop off and pick up on the same day. Extended rental periods may be available — contact us for custom pricing.",
+      position: 5,
+    },
+    {
+      id: "setup-requirements",
+      question: "Do I need to provide anything for setup?",
+      answer: "You will need a flat, clear outdoor area large enough for the inflatable, access to a standard electrical outlet (for the blower), and a water source nearby for water slides. We handle everything else — delivery, setup, and takedown!",
+      position: 6,
+    },
+    {
+      id: "clean-safe",
+      question: "Are your inflatables clean and safe?",
+      answer: "Absolutely! Every inflatable is thoroughly cleaned and sanitized after each use. All our equipment is commercial-grade and regularly inspected to ensure the highest safety standards for your children and guests.",
+      position: 7,
+    },
+    {
+      id: "cancel-reschedule",
+      question: "Can I cancel or reschedule my booking?",
+      answer: "Yes! We understand that plans change. Please notify us at least 48 hours in advance to reschedule at no extra charge. Cancellations made less than 48 hours before the event may be subject to a partial deposit forfeiture. Weather-related cancellations are always free to reschedule.",
+      position: 8,
+    },
+  ],
 };
 
 const CATEGORY_LABELS = {
@@ -218,6 +268,9 @@ async function loadSiteContent() {
     const res = await fetch(CONTENT_API, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     cachedContent = await res.json();
+    if (!Array.isArray(cachedContent.faq)) {
+      cachedContent.faq = DEFAULT_CONTENT.faq;
+    }
   } catch (e) {
     cachedContent = DEFAULT_CONTENT;
   }
@@ -399,6 +452,29 @@ function renderProductPage(root, content, product) {
   bindAddButtons(root);
 }
 
+/* ---------- FAQ page ---------- */
+function renderFaq(root, content) {
+  const items = (content.faq || [])
+    .slice()
+    .sort(function (a, b) { return a.position - b.position; });
+
+  root.innerHTML = items.length
+    ? items.map(function (f) {
+        return (
+          '<div class="faq-item">' +
+            '<div class="faq-question">' +
+              "<span>" + esc(f.question) + "</span>" +
+              '<span class="faq-toggle-icon">+</span>' +
+            "</div>" +
+            '<div class="faq-answer">' + esc(f.answer) + "</div>" +
+          "</div>"
+        );
+      }).join("")
+    : '<p class="catalog-empty">No FAQ yet.</p>';
+
+  if (typeof initFAQ === "function") initFAQ();
+}
+
 /* ---------- Init ---------- */
 document.addEventListener("DOMContentLoaded", async function () {
   const content = await loadSiteContent();
@@ -409,6 +485,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   const catalogRoot = document.getElementById("catalog-root");
   if (catalogRoot) renderCatalog(catalogRoot, content);
+
+  const faqRoot = document.getElementById("faq-root");
+  if (faqRoot) renderFaq(faqRoot, content);
 
   const productRoot = document.getElementById("product-root");
   if (productRoot) {
