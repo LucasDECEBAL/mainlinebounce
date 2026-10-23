@@ -240,6 +240,7 @@ const CATEGORY_LABELS = {
 const CATEGORY_ORDER = ["kids", "teen", "corporate"];
 
 let cachedContent = null;
+let contentIsFallback = false;
 
 /* ---------- Helpers ---------- */
 function esc(value) {
@@ -268,10 +269,11 @@ async function loadSiteContent() {
     const res = await fetch(CONTENT_API, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     cachedContent = await res.json();
-    if (!Array.isArray(cachedContent.faq)) {
+    if (!Array.isArray(cachedContent.faq) || cachedContent.faq.length === 0) {
       cachedContent.faq = DEFAULT_CONTENT.faq;
     }
   } catch (e) {
+    contentIsFallback = true;
     cachedContent = DEFAULT_CONTENT;
   }
   return cachedContent;
@@ -487,7 +489,9 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (catalogRoot) renderCatalog(catalogRoot, content);
 
   const faqRoot = document.getElementById("faq-root");
-  if (faqRoot) renderFaq(faqRoot, content);
+  // Si le backend est injoignable, on garde les questions statiques du HTML
+  // (déjà reliées à l'accordéon par main.js).
+  if (faqRoot && !contentIsFallback) renderFaq(faqRoot, content);
 
   const productRoot = document.getElementById("product-root");
   if (productRoot) {

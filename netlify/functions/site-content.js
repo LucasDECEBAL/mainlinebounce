@@ -365,7 +365,7 @@ function normalizeStored(stored) {
     banners,
     addons: Array.isArray(stored.addons) && stored.addons.length ? stored.addons : base.addons,
     products: Array.isArray(stored.products) ? stored.products : base.products,
-    faq: Array.isArray(stored.faq) ? stored.faq : base.faq,
+    faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
   };
 }
 
