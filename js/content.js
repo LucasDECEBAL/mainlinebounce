@@ -1,11 +1,11 @@
 /* ============================================
-   MAIN LINE BOUNCE — CONTENU DYNAMIQUE (CMS)
-   Lit bannières + articles depuis le backend
+   MAIN LINE BOUNCE — DYNAMIC CONTENT (CMS)
+   Loads banners + products from the backend
    ============================================ */
 
 const CONTENT_API = "/.netlify/functions/site-content";
 
-/* Contenu de secours (si le backend est injoignable) */
+/* Fallback content (if the backend is unreachable) */
 const DEFAULT_CONTENT = {
   banners: {
     home: {
@@ -191,7 +191,7 @@ const CATEGORY_ORDER = ["kids", "teen", "corporate"];
 
 let cachedContent = null;
 
-/* ---------- Utilitaires ---------- */
+/* ---------- Helpers ---------- */
 function esc(value) {
   return String(value == null ? "" : value)
     .replace(/&/g, "&amp;")
@@ -211,7 +211,7 @@ function detailUrl(product) {
   return "product.html?id=" + encodeURIComponent(product.id);
 }
 
-/* ---------- Chargement ---------- */
+/* ---------- Loading ---------- */
 async function loadSiteContent() {
   if (cachedContent) return cachedContent;
   try {
@@ -224,7 +224,7 @@ async function loadSiteContent() {
   return cachedContent;
 }
 
-/* ---------- Bananières ---------- */
+/* ---------- Banners ---------- */
 function renderBanner(key, content) {
   const el = document.querySelector('[data-banner="' + key + '"]');
   if (!el) return;
@@ -264,7 +264,7 @@ function renderBanner(key, content) {
   }
 }
 
-/* ---------- Boutons panier ---------- */
+/* ---------- Cart buttons ---------- */
 function bindAddButtons(root) {
   root.querySelectorAll("[data-add-to-cart]").forEach((btn) => {
     if (btn.dataset.bound === "1") return;
@@ -282,7 +282,7 @@ function bindAddButtons(root) {
   });
 }
 
-/* ---------- Carte produit ---------- */
+/* ---------- Product card ---------- */
 function productCardHTML(p) {
   const url = detailUrl(p);
   const priceHTML = p.oldPrice
@@ -308,7 +308,7 @@ function productCardHTML(p) {
   );
 }
 
-/* ---------- Catalogue (page Inflatables) ---------- */
+/* ---------- Catalog (Inflatables page) ---------- */
 function renderCatalog(root, content) {
   const html = CATEGORY_ORDER.map((cat) => {
     const items = content.products
@@ -329,7 +329,7 @@ function renderCatalog(root, content) {
   bindAddButtons(root);
 }
 
-/* ---------- Page détail produit ---------- */
+/* ---------- Product detail page ---------- */
 function renderProductPage(root, content, product) {
   const addonList = (product.addons || [])
     .map((id) => content.addons.find((a) => a.id === id))

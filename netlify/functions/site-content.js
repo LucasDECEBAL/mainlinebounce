@@ -2,7 +2,7 @@ const { getStore } = require("@netlify/blobs");
 const crypto = require("crypto");
 
 /* ============================================
-   CONTENU PAR DÉFAUT (si rien n'a été sauvegardé)
+   DEFAULT CONTENT (if nothing has been saved yet)
    ============================================ */
 const DEFAULT_CONTENT = {
   version: 1,
@@ -190,7 +190,7 @@ const CATEGORIES = ["kids", "teen", "corporate"];
 const BANNER_KEYS = ["home", "inflatables", "addons", "youngAdult"];
 
 /* ============================================
-   VALIDATION / NETTOYAGE
+   VALIDATION / SANITIZATION
    ============================================ */
 function cleanStr(value, max) {
   if (typeof value !== "string") return "";
@@ -227,7 +227,7 @@ function cleanAddon(a) {
 
 function cleanProduct(p) {
   const price = cleanPrice(p && p.price);
-  if (price === null) throw new Error("Prix invalide");
+  if (price === null) throw new Error("Invalid price");
   const category = CATEGORIES.includes(p.category) ? p.category : "kids";
 
   let addons = Array.isArray(p.addons) ? p.addons : [];
@@ -304,7 +304,7 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: "" };
   }
 
-  /* 📖 GET → contenu public (lu par le site) */
+  /* 📖 GET → public content (read by the site) */
   if (event.httpMethod === "GET") {
     const stored = await store.get("content.json", { type: "json" });
     return {
@@ -314,7 +314,7 @@ exports.handler = async (event) => {
     };
   }
 
-  /* ✍️ POST → admin uniquement */
+  /* ✍️ POST → admin only */
   if (event.httpMethod === "POST") {
     const adminKey = event.headers["x-admin-key"];
     const expectedKey = process.env.ADMIN_KEY;
@@ -333,7 +333,7 @@ exports.handler = async (event) => {
       return { statusCode: 401, headers, body: JSON.stringify({ error: "Unauthorized" }) };
     }
 
-    // Vérification de la clé uniquement (login admin)
+    // Key verification only (admin login)
     if (event.queryStringParameters && event.queryStringParameters.verify) {
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
     }
@@ -343,7 +343,7 @@ exports.handler = async (event) => {
       const content = cleanContent(raw);
 
       if (content.products.length === 0 && Array.isArray(raw.products) && raw.products.length > 0) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "Aucun article valide" }) };
+        return { statusCode: 400, headers, body: JSON.stringify({ error: "No valid products" }) };
       }
 
       await store.set("content.json", JSON.stringify(content));
@@ -352,7 +352,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: error.message || "Contenu invalide" }),
+        body: JSON.stringify({ error: error.message || "Invalid content" }),
       };
     }
   }
