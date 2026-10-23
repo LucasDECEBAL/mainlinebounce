@@ -347,6 +347,28 @@ function cleanContent(raw) {
   return { version: 1, banners, addons, products, faq };
 }
 
+/* Complète un contenu sauvegardé avec les valeurs par défaut manquantes
+   (ex: ancien contenu sauvegardé avant l'ajout de la FAQ) */
+function normalizeStored(stored) {
+  const base = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
+
+  if (!stored || typeof stored !== "object") return base;
+
+  const banners = {};
+  BANNER_KEYS.forEach((key) => {
+    banners[key] =
+      stored.banners && stored.banners[key] ? stored.banners[key] : base.banners[key];
+  });
+
+  return {
+    version: 1,
+    banners,
+    addons: Array.isArray(stored.addons) && stored.addons.length ? stored.addons : base.addons,
+    products: Array.isArray(stored.products) ? stored.products : base.products,
+    faq: Array.isArray(stored.faq) ? stored.faq : base.faq,
+  };
+}
+
 /* ============================================
    HANDLER
    ============================================ */
@@ -382,7 +404,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(stored || DEFAULT_CONTENT),
+      body: JSON.stringify(normalizeStored(stored)),
     };
   }
 
