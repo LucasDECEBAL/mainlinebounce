@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Gestion des dates</title>
+  <title>Admin - Main Line Bounce</title>
 
   <!-- ✅ Thème du site -->
   <link rel="stylesheet" href="css/style.css">
@@ -11,17 +11,36 @@
   <style>
   /* ===== ADMIN — aligné sur le thème Main Line Bounce ===== */
   .admin-wrap{
-    max-width: 600px;
+    max-width: 980px;
     margin: 48px auto 80px;
     padding: 0 28px;
   }
 
-  .admin-wrap h1{
-    text-align: center;
-    font-size: 1.9rem;
+  .admin-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .admin-head h1{
+    font-size: 1.7rem;
     font-weight: 800;
     color: var(--color-dark);
-    margin-bottom: 28px;
+    margin: 0;
+  }
+
+  .logout-btn{
+    background: #fff;
+    border: 2px solid var(--color-dark);
+    color: var(--color-dark);
+    padding: 8px 18px;
+    border-radius: var(--radius-pill);
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
   }
 
   .box{
@@ -49,7 +68,10 @@
 
   input[type="password"],
   input[type="date"],
-  select{
+  input[type="text"],
+  input[type="number"],
+  select,
+  textarea{
     width: 100%;
     padding: 12px 14px;
     border: 2px solid var(--color-pink-pale);
@@ -61,13 +83,23 @@
     box-sizing: border-box;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  input[type="password"]:focus,
-  input[type="date"]:focus,
-  select:focus{
+  textarea{ resize: vertical; }
+
+  input:focus, select:focus, textarea:focus{
     outline: none;
     border-color: var(--color-pink);
     box-shadow: 0 0 0 3px rgba(245,106,155,0.15);
   }
+
+  .check-row{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    font-weight: 600;
+    font-size: 0.93rem;
+  }
+  .check-row input{ width: auto; }
 
   .block-btn,
   .unblock-btn{
@@ -104,9 +136,9 @@
     box-shadow: 0 8px 24px rgba(245,148,74,0.45);
   }
 
-  #status{
+  .status{
     text-align: center;
-    margin-top: 16px;
+    margin-top: 14px;
     font-weight: 700;
     font-size: 0.9rem;
     min-height: 20px;
@@ -133,53 +165,269 @@
   }
   .list li::before{ content: "📅"; }
 
+  /* Onglets */
+  .tabs{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .tab{
+    background: #fff;
+    border: 2px solid var(--color-pink-pale);
+    color: var(--color-dark);
+    padding: 10px 20px;
+    border-radius: var(--radius-pill);
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .tab.active{
+    background: var(--color-pink);
+    border-color: var(--color-pink);
+    color: #fff;
+  }
+
+  /* Bannières */
+  .banner-editor{
+    border: 2px solid var(--color-pink-pale);
+    border-radius: 16px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .banner-editor h4{
+    margin: 0 0 4px;
+    font-size: 1rem;
+    color: var(--color-dark);
+  }
+
+  /* Table articles */
+  .articles-table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  .articles-table th,
+  .articles-table td{
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+  }
+  .articles-table th{
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-gray);
+  }
+  .articles-table .tag{
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 50px;
+    background: var(--color-pink-pale);
+    color: var(--color-pink);
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+  .articles-table .tag.off{
+    background: #f0f0f0;
+    color: var(--color-gray);
+  }
+  .row-btn{
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 4px 8px;
+    text-decoration: underline;
+  }
+  .row-btn.edit{ color: var(--color-dark); }
+  .row-btn.del{ color: #e63329; }
+
+  /* Add-ons checkboxes */
+  .addons-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .addon-check{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-pink-pale);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .addon-check input{ width: auto; }
+  .addon-check.disabled{ opacity: 0.45; }
+
+  .form-actions{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 720px){
+    .addons-grid{ grid-template-columns: 1fr; }
+    .articles-table th:nth-child(4),
+    .articles-table td:nth-child(4){ display: none; }
+  }
+
   @media (max-width: 600px){
     .admin-wrap{ padding: 0 18px; margin: 32px auto 60px; }
     .box{ padding: 26px 22px; }
-    .admin-wrap h1{ font-size: 1.6rem; }
+    .admin-head h1{ font-size: 1.35rem; }
+    .form-actions{ grid-template-columns: 1fr; }
   }
   </style>
 </head>
 <body>
 
   <div class="admin-wrap">
-    <h1>🔐 Gestion des dates bloquées</h1>
-
-    <div class="box">
-      <label>Clé admin</label>
-      <input type="password" id="adminKey" placeholder="Ta clé secrète">
-
-      <label>Inflatable concerné</label>
-      <select id="item">
-        <option value="ALL">🌐 TOUS les inflatables (blocage global)</option>
-        <option value="big-fun-xl">Big Fun XL</option>
-        <option value="dolphin-slide">Water Slide</option>
-        <option value="foam-machine">Foam Machine</option>
-        <option value="magic-castle">Magic Castle</option>
-        <option value="slip-and-slide">Slip and Slide</option>
-        <option value="superhero-combo">Super Hero Duo Combo</option>
-        <option value="tropical-paradise">Tropical Paradise</option>
-      </select>
-
-      <label>Date à bloquer / débloquer</label>
-      <input type="date" id="date">
-
-      <button class="block-btn" onclick="sendAction('block')">🚫 Bloquer cette date</button>
-      <button class="unblock-btn" onclick="sendAction('unblock')">✅ Débloquer cette date</button>
-
-      <div id="status"></div>
+    <div class="admin-head">
+      <h1>🔐 Admin Main Line Bounce</h1>
+      <button class="logout-btn" id="logoutBtn" style="display:none;">Déconnexion</button>
     </div>
 
-    <div class="box">
-      <h3>📅 Dates actuellement bloquées</h3>
-      <div class="list" id="blockedList">Chargement...</div>
+    <!-- ================= LOGIN ================= -->
+    <div class="box" id="loginBox">
+      <label>Clé admin</label>
+      <input type="password" id="adminKey" placeholder="Ta clé secrète">
+      <button class="block-btn" id="loginBtn">Se connecter</button>
+      <div class="status" id="loginStatus"></div>
+    </div>
+
+    <!-- ================= PANEL ================= -->
+    <div id="panel" style="display:none;">
+
+      <div class="tabs">
+        <button class="tab active" data-tab="dates">📅 Dates bloquées</button>
+        <button class="tab" data-tab="banners">🖼️ Bannières</button>
+        <button class="tab" data-tab="articles">🎈 Articles</button>
+      </div>
+
+      <!-- ---------- ONGLET DATES ---------- -->
+      <div class="tab-panel" id="tab-dates">
+        <div class="box">
+          <label>Inflatable concerné</label>
+          <select id="item">
+            <option value="ALL">🌐 TOUS les inflatables (blocage global)</option>
+            <option value="big-fun-xl">Big Fun XL</option>
+            <option value="dolphin-slide">Water Slide</option>
+            <option value="foam-machine">Foam Machine</option>
+            <option value="magic-castle">Magic Castle</option>
+            <option value="slip-and-slide">Slip and Slide</option>
+            <option value="superhero-combo">Super Hero Duo Combo</option>
+            <option value="tropical-paradise">Tropical Paradise</option>
+          </select>
+
+          <label>Date à bloquer / débloquer</label>
+          <input type="date" id="date">
+
+          <button class="block-btn" onclick="sendAction('block')">🚫 Bloquer cette date</button>
+          <button class="unblock-btn" onclick="sendAction('unblock')">✅ Débloquer cette date</button>
+
+          <div id="status" class="status"></div>
+        </div>
+
+        <div class="box">
+          <h3>📅 Dates actuellement bloquées</h3>
+          <div class="list" id="blockedList">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- ---------- ONGLET BANNIÈRES ---------- -->
+      <div class="tab-panel" id="tab-banners" style="display:none;">
+        <div class="box">
+          <h3>Bannière par page</h3>
+          <div id="bannersForm"></div>
+          <button class="block-btn" id="saveBannersBtn">💾 Enregistrer les bannières</button>
+          <div class="status" id="bannerStatus"></div>
+        </div>
+      </div>
+
+      <!-- ---------- ONGLET ARTICLES ---------- -->
+      <div class="tab-panel" id="tab-articles" style="display:none;">
+        <div class="box">
+          <h3>Articles</h3>
+          <div id="articlesTable"></div>
+          <button class="block-btn" id="newArticleBtn">➕ Nouvel article</button>
+        </div>
+
+        <div class="box" id="articleFormBox" style="display:none;">
+          <h3 id="articleFormTitle">Nouvel article</h3>
+          <input type="hidden" id="a-id">
+
+          <label>Nom de l'article</label>
+          <input type="text" id="a-name" maxlength="100">
+
+          <label>Tuile / catégorie</label>
+          <select id="a-category">
+            <option value="kids">Kids Party</option>
+            <option value="teen">Teen &amp; Young Adult</option>
+            <option value="corporate">Corporate &amp; Large Events</option>
+          </select>
+
+          <label>Prix ($)</label>
+          <input type="number" id="a-price" min="0" step="1">
+
+          <label>Ancien prix ($) — optionnel (prix barré)</label>
+          <input type="number" id="a-oldprice" min="0" step="1">
+
+          <label>Position sur la page (1, 2, 3…)</label>
+          <input type="number" id="a-position" min="1" max="99" value="1">
+
+          <label>Dimensions</label>
+          <input type="text" id="a-dimension" maxlength="60" placeholder="ex: 13 × 13 ft">
+
+          <label>Description courte</label>
+          <input type="text" id="a-short" maxlength="300">
+
+          <label>Description longue</label>
+          <textarea id="a-long" rows="5" maxlength="3000"></textarea>
+
+          <label>Image (chemin)</label>
+          <input type="text" id="a-image" maxlength="300" placeholder="images/mon-produit.png">
+
+          <label>Badge (optionnel)</label>
+          <input type="text" id="a-badge" maxlength="30" placeholder="LIMITED TIME">
+
+          <label>Lien personnalisé (optionnel)</label>
+          <input type="text" id="a-url" maxlength="300" placeholder="ex: combo-special-2.html (sinon page produit auto)">
+
+          <div class="check-row">
+            <input type="checkbox" id="a-available" checked>
+            <span>Article disponible (décocher = indisponible)</span>
+          </div>
+
+          <label>Add-ons proposés (max 6)</label>
+          <div id="a-addons" class="addons-grid"></div>
+          <div class="status" id="addonsCount"></div>
+
+          <div class="form-actions">
+            <button class="block-btn" id="saveArticleBtn" style="margin-top:8px;">💾 Enregistrer</button>
+            <button class="unblock-btn" id="cancelArticleBtn" style="margin-top:8px;">Annuler</button>
+          </div>
+          <div class="status" id="articleStatus"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script>
-    const API = "/.netlify/functions/blocked-dates";
+    const API_DATES = "/.netlify/functions/blocked-dates";
+    const API_CONTENT = "/.netlify/functions/site-content";
 
-    // Noms lisibles pour l'affichage
     const ITEM_NAMES = {
       "ALL": "🌐 Tous les inflatables",
       "big-fun-xl": "Big Fun XL",
@@ -191,23 +439,389 @@
       "tropical-paradise": "Tropical Paradise"
     };
 
+    const BANNER_LABELS = {
+      home: "Accueil (Home)",
+      inflatables: "Inflatables",
+      addons: "Add-ons",
+      youngAdult: "Jeunes adultes (Silent Disco)"
+    };
+
+    const CATEGORY_LABELS = {
+      kids: "Kids",
+      teen: "Teen",
+      corporate: "Corporate"
+    };
+
+    let adminKey = sessionStorage.getItem("mlb_admin_key") || "";
+    let content = null;
+
+    /* ============================================
+       LOGIN
+       ============================================ */
+    async function verifyKey(key) {
+      const res = await fetch(API_CONTENT + "?verify=1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": key },
+        body: "{}"
+      });
+      return res.ok;
+    }
+
+    async function login() {
+      const key = document.getElementById("adminKey").value.trim();
+      const status = document.getElementById("loginStatus");
+
+      if (!key) {
+        status.textContent = "❌ Entre ta clé admin";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      status.textContent = "⏳ Vérification...";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        if (!(await verifyKey(key))) {
+          status.textContent = "❌ Clé admin incorrecte";
+          status.style.color = "#e63329";
+          return;
+        }
+      } catch (e) {
+        status.textContent = "❌ Erreur réseau";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      adminKey = key;
+      sessionStorage.setItem("mlb_admin_key", key);
+      status.textContent = "";
+      await enterPanel();
+    }
+
+    function logout() {
+      sessionStorage.removeItem("mlb_admin_key");
+      adminKey = "";
+      document.getElementById("panel").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+      document.getElementById("logoutBtn").style.display = "none";
+      document.getElementById("adminKey").value = "";
+    }
+
+    async function enterPanel() {
+      try {
+        await loadContent();
+      } catch (e) {
+        document.getElementById("panel").style.display = "none";
+        document.getElementById("loginBox").style.display = "block";
+        document.getElementById("logoutBtn").style.display = "none";
+        const status = document.getElementById("loginStatus");
+        status.textContent = "❌ Backend indisponible — déploie sur Netlify ou lance `netlify dev`";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("panel").style.display = "block";
+      document.getElementById("logoutBtn").style.display = "inline-block";
+
+      renderBannersForm();
+      renderArticles();
+      loadBlocked();
+    }
+
+    /* ============================================
+       CONTENU (bannières + articles)
+       ============================================ */
+    async function loadContent() {
+      const res = await fetch(API_CONTENT, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      content = await res.json();
+    }
+
+    async function saveContent(statusEl, okMessage) {
+      statusEl.textContent = "⏳ Enregistrement...";
+      statusEl.style.color = "var(--color-gray)";
+
+      const res = await fetch(API_CONTENT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        body: JSON.stringify(content)
+      });
+
+      if (res.status === 401) {
+        logout();
+        return false;
+      }
+
+      if (!res.ok) {
+        let message = "Erreur serveur";
+        try {
+          const data = await res.json();
+          message = data.error || message;
+        } catch (e) {}
+        statusEl.textContent = "❌ " + message;
+        statusEl.style.color = "#e63329";
+        return false;
+      }
+
+      content = await res.json();
+      statusEl.textContent = "✅ " + okMessage;
+      statusEl.style.color = "#27ae60";
+      return true;
+    }
+
+    /* ============================================
+       BANNIÈRES
+       ============================================ */
+    function renderBannersForm() {
+      const root = document.getElementById("bannersForm");
+
+      root.innerHTML = Object.keys(BANNER_LABELS).map(function (key) {
+        const b = (content.banners && content.banners[key]) || {};
+        return (
+          '<div class="banner-editor">' +
+            "<h4>" + BANNER_LABELS[key] + "</h4>" +
+            '<div class="check-row">' +
+              '<input type="checkbox" id="b-' + key + '-enabled"' + (b.enabled ? " checked" : "") + ">" +
+              "<span>Afficher la bannière</span>" +
+            "</div>" +
+            "<label>Petit texte (gauche)</label>" +
+            '<input type="text" id="b-' + key + '-text" maxlength="80" value="' + escapeAttr(b.text || "") + '">' +
+            "<label>Titre (gras)</label>" +
+            '<input type="text" id="b-' + key + '-title" maxlength="160" value="' + escapeAttr(b.title || "") + '">' +
+            "<label>Sous-texte</label>" +
+            '<input type="text" id="b-' + key + '-sub" maxlength="160" value="' + escapeAttr(b.sub || "") + '">' +
+            "<label>Texte du bouton</label>" +
+            '<input type="text" id="b-' + key + '-cta" maxlength="30" value="' + escapeAttr(b.cta || "") + '">' +
+            "<label>Lien du bouton</label>" +
+            '<input type="text" id="b-' + key + '-link" maxlength="300" value="' + escapeAttr(b.link || "") + '">' +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    async function saveBanners() {
+      if (!content) return;
+
+      Object.keys(BANNER_LABELS).forEach(function (key) {
+        content.banners[key] = {
+          enabled: document.getElementById("b-" + key + "-enabled").checked,
+          text: document.getElementById("b-" + key + "-text").value.trim(),
+          title: document.getElementById("b-" + key + "-title").value.trim(),
+          sub: document.getElementById("b-" + key + "-sub").value.trim(),
+          cta: document.getElementById("b-" + key + "-cta").value.trim(),
+          link: document.getElementById("b-" + key + "-link").value.trim()
+        };
+      });
+
+      await saveContent(document.getElementById("bannerStatus"), "Bannières enregistrées");
+    }
+
+    /* ============================================
+       ARTICLES
+       ============================================ */
+    function renderArticles() {
+      const root = document.getElementById("articlesTable");
+      const products = (content.products || []).slice().sort(function (a, b) {
+        return a.category.localeCompare(b.category) || a.position - b.position;
+      });
+
+      if (!products.length) {
+        root.innerHTML = '<p style="color:var(--color-gray);">Aucun article. Clique sur « Nouvel article ».</p>';
+        return;
+      }
+
+      let rows = products.map(function (p) {
+        return (
+          "<tr>" +
+            "<td>" + p.position + "</td>" +
+            "<td><strong>" + escapeHtml(p.name) + "</strong></td>" +
+            "<td>" + (CATEGORY_LABELS[p.category] || p.category) + "</td>" +
+            "<td>$" + p.price + "</td>" +
+            "<td>" + (p.available ? '<span class="tag">Dispo</span>' : '<span class="tag off">Indispo</span>') + "</td>" +
+            '<td style="white-space:nowrap;">' +
+              '<button class="row-btn edit" data-edit="' + escapeAttr(p.id) + '">Modifier</button>' +
+              '<button class="row-btn del" data-del="' + escapeAttr(p.id) + '">Supprimer</button>' +
+            "</td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      root.innerHTML =
+        '<table class="articles-table">' +
+          "<thead><tr><th>Pos.</th><th>Nom</th><th>Catégorie</th><th>Prix</th><th>Statut</th><th></th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+        "</table>";
+
+      root.querySelectorAll("[data-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openArticleForm(btn.getAttribute("data-edit"));
+        });
+      });
+
+      root.querySelectorAll("[data-del]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          const id = btn.getAttribute("data-del");
+          const product = content.products.find(function (p) { return p.id === id; });
+          if (!product) return;
+          if (!confirm("Supprimer l'article « " + product.name + " » ?")) return;
+
+          content.products = content.products.filter(function (p) { return p.id !== id; });
+          const ok = await saveContent(document.getElementById("articleStatus"), "Article supprimé");
+          if (ok) {
+            renderArticles();
+            document.getElementById("articleFormBox").style.display = "none";
+          }
+        });
+      });
+    }
+
+    function renderAddonCheckboxes(selected) {
+      const root = document.getElementById("a-addons");
+      const chosen = Array.isArray(selected) ? selected.slice(0, 6) : [];
+
+      root.innerHTML = (content.addons || []).map(function (a) {
+        const checked = chosen.indexOf(a.id) !== -1;
+        return (
+          '<label class="addon-check">' +
+            '<input type="checkbox" value="' + escapeAttr(a.id) + '"' + (checked ? " checked" : "") + ">" +
+            "<span>" + escapeHtml(a.name) + " — $" + (a.price == null ? "—" : a.price) + "</span>" +
+          "</label>"
+        );
+      }).join("");
+
+      root.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+        box.addEventListener("change", refreshAddonLocks);
+      });
+
+      refreshAddonLocks();
+    }
+
+    function refreshAddonLocks() {
+      const boxes = Array.from(document.querySelectorAll('#a-addons input[type="checkbox"]'));
+      const checked = boxes.filter(function (b) { return b.checked; });
+
+      if (checked.length > 6) {
+        checked[checked.length - 1].checked = false;
+      }
+
+      const count = boxes.filter(function (b) { return b.checked; }).length;
+      boxes.forEach(function (b) {
+        b.disabled = !b.checked && count >= 6;
+        b.closest(".addon-check").classList.toggle("disabled", b.disabled);
+      });
+
+      document.getElementById("addonsCount").textContent = count + " / 6 sélectionnés";
+      document.getElementById("addonsCount").style.color = "var(--color-gray)";
+    }
+
+    function openArticleForm(id) {
+      const box = document.getElementById("articleFormBox");
+      box.style.display = "block";
+
+      const product = id
+        ? content.products.find(function (p) { return p.id === id; })
+        : null;
+
+      document.getElementById("articleFormTitle").textContent = product ? "Modifier l'article" : "Nouvel article";
+      document.getElementById("a-id").value = product ? product.id : "";
+      document.getElementById("a-name").value = product ? product.name : "";
+      document.getElementById("a-category").value = product ? product.category : "kids";
+      document.getElementById("a-price").value = product ? product.price : "";
+      document.getElementById("a-oldprice").value = product && product.oldPrice != null ? product.oldPrice : "";
+      document.getElementById("a-position").value = product ? product.position : 1;
+      document.getElementById("a-dimension").value = product ? product.dimension : "";
+      document.getElementById("a-short").value = product ? product.shortDesc : "";
+      document.getElementById("a-long").value = product ? product.longDesc : "";
+      document.getElementById("a-image").value = product ? product.image : "images/placeholder.svg";
+      document.getElementById("a-badge").value = product ? product.badge : "";
+      document.getElementById("a-url").value = product ? product.url : "";
+      document.getElementById("a-available").checked = product ? product.available : true;
+      document.getElementById("articleStatus").textContent = "";
+
+      renderAddonCheckboxes(product ? product.addons : []);
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function saveArticle() {
+      const status = document.getElementById("articleStatus");
+      const name = document.getElementById("a-name").value.trim();
+      const price = parseFloat(document.getElementById("a-price").value);
+
+      if (!name) {
+        status.textContent = "❌ Le nom est obligatoire";
+        status.style.color = "#e63329";
+        return;
+      }
+      if (!Number.isFinite(price) || price < 0) {
+        status.textContent = "❌ Prix invalide";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const oldPriceRaw = document.getElementById("a-oldprice").value;
+      const oldPrice = oldPriceRaw === "" ? null : parseFloat(oldPriceRaw);
+
+      const addons = Array.from(document.querySelectorAll('#a-addons input[type="checkbox"]:checked'))
+        .map(function (b) { return b.value; })
+        .slice(0, 6);
+
+      const existingId = document.getElementById("a-id").value;
+      const id = existingId || slugify(name) + "-" + Date.now().toString(36);
+
+      const product = {
+        id: id,
+        name: name,
+        category: document.getElementById("a-category").value,
+        price: price,
+        oldPrice: Number.isFinite(oldPrice) ? oldPrice : null,
+        badge: document.getElementById("a-badge").value.trim(),
+        shortDesc: document.getElementById("a-short").value.trim(),
+        longDesc: document.getElementById("a-long").value.trim(),
+        dimension: document.getElementById("a-dimension").value.trim(),
+        image: document.getElementById("a-image").value.trim() || "images/placeholder.svg",
+        position: parseInt(document.getElementById("a-position").value, 10) || 1,
+        available: document.getElementById("a-available").checked,
+        url: document.getElementById("a-url").value.trim(),
+        addons: addons
+      };
+
+      const index = content.products.findIndex(function (p) { return p.id === id; });
+      if (index >= 0) {
+        content.products[index] = product;
+      } else {
+        content.products.push(product);
+      }
+
+      const ok = await saveContent(status, "Article enregistré");
+      if (ok) {
+        renderArticles();
+        openArticleForm(product.id);
+        status.textContent = "✅ Article enregistré";
+        status.style.color = "#27ae60";
+      }
+    }
+
+    /* ============================================
+       DATES BLOQUÉES (existant)
+       ============================================ */
     async function sendAction(action) {
       const status = document.getElementById("status");
-      const adminKey = document.getElementById("adminKey").value.trim();
+      const key = adminKey;
       const date = document.getElementById("date").value;
       const item = document.getElementById("item").value;
 
-      if (!adminKey) { status.textContent = "❌ Entre ta clé admin"; status.style.color = "#e63329"; return; }
-      if (!item)     { status.textContent = "❌ Choisis un inflatable"; status.style.color = "#e63329"; return; }
-      if (!date)     { status.textContent = "❌ Choisis une date"; status.style.color = "#e63329"; return; }
+      if (!key) { status.textContent = "❌ Entre ta clé admin"; status.style.color = "#e63329"; return; }
+      if (!item) { status.textContent = "❌ Choisis un inflatable"; status.style.color = "#e63329"; return; }
+      if (!date) { status.textContent = "❌ Choisis une date"; status.style.color = "#e63329"; return; }
 
       status.textContent = "⏳ En cours...";
       status.style.color = "var(--color-gray)";
 
       try {
-        const res = await fetch(API, {
+        const res = await fetch(API_DATES, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+          headers: { "Content-Type": "application/json", "x-admin-key": key },
           body: JSON.stringify({ item: item, date: date, action: action })
         });
 
@@ -220,8 +834,8 @@
         if (res.ok) {
           const label = ITEM_NAMES[item] || item;
           status.textContent = action === "block"
-            ? `✅ Date bloquée (${label}) : ${date}`
-            : `✅ Date débloquée (${label}) : ${date}`;
+            ? "✅ Date bloquée (" + label + ") : " + date
+            : "✅ Date débloquée (" + label + ") : " + date;
           status.style.color = "#27ae60";
           loadBlocked();
         } else {
@@ -237,25 +851,26 @@
     async function loadBlocked() {
       const list = document.getElementById("blockedList");
       try {
-        const res = await fetch(API);
+        const res = await fetch(API_DATES);
         const data = await res.json();
 
-        const keys = Object.keys(data).filter(k => (data[k] || []).length > 0);
+        const keys = Object.keys(data).filter(function (k) { return (data[k] || []).length > 0; });
         if (keys.length === 0) {
           list.textContent = "Aucune date bloquée.";
           return;
         }
 
         let html = "";
-        // On affiche ALL en premier s'il existe
-        const ordered = keys.sort((a, b) => (a === "ALL" ? -1 : b === "ALL" ? 1 : a.localeCompare(b)));
+        const ordered = keys.sort(function (a, b) {
+          return a === "ALL" ? -1 : b === "ALL" ? 1 : a.localeCompare(b);
+        });
 
         for (const key of ordered) {
           const dates = (data[key] || []).sort();
           if (dates.length === 0) continue;
           const label = ITEM_NAMES[key] || key;
-          html += `<h4>${label}</h4><ul>`;
-          for (const d of dates) html += `<li>${d}</li>`;
+          html += "<h4>" + escapeHtml(label) + "</h4><ul>";
+          for (const d of dates) html += "<li>" + escapeHtml(d) + "</li>";
           html += "</ul>";
         }
         list.innerHTML = html;
@@ -264,7 +879,70 @@
       }
     }
 
-    loadBlocked();
+    /* ============================================
+       UTILITAIRES
+       ============================================ */
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    function slugify(value) {
+      return String(value)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40) || "article";
+    }
+
+    /* ============================================
+       INIT
+       ============================================ */
+    document.getElementById("loginBtn").addEventListener("click", login);
+    document.getElementById("adminKey").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") login();
+    });
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("saveBannersBtn").addEventListener("click", saveBanners);
+    document.getElementById("saveArticleBtn").addEventListener("click", saveArticle);
+    document.getElementById("cancelArticleBtn").addEventListener("click", function () {
+      document.getElementById("articleFormBox").style.display = "none";
+    });
+    document.getElementById("newArticleBtn").addEventListener("click", function () {
+      openArticleForm(null);
+    });
+
+    document.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+        document.querySelectorAll(".tab-panel").forEach(function (p) { p.style.display = "none"; });
+        tab.classList.add("active");
+        document.getElementById("tab-" + tab.getAttribute("data-tab")).style.display = "block";
+      });
+    });
+
+    (async function init() {
+      if (adminKey) {
+        try {
+          if (await verifyKey(adminKey)) {
+            await enterPanel();
+            return;
+          }
+        } catch (e) {}
+        sessionStorage.removeItem("mlb_admin_key");
+        adminKey = "";
+      }
+    })();
   </script>
 </body>
 </html>

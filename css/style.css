@@ -1452,3 +1452,44 @@ ul   { list-style: none; }
   font-size: 0.9rem;
   color: var(--color-gray);
 }
+
+/* ============================================
+   CATALOGUE DYNAMIQUE (CMS)
+   ============================================ */
+.catalog-section {
+  margin-bottom: 48px;
+}
+
+.catalog-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-dark);
+  margin-bottom: 18px;
+}
+
+.catalog-empty {
+  text-align: center;
+  color: var(--color-gray);
+  padding: 30px 0;
+}
+
+.product-card.is-unavailable .product-image img {
+  filter: grayscale(0.55);
+  opacity: 0.65;
+}
+
+.badge-unavailable {
+  background: var(--color-gray) !important;
+  box-shadow: none !important;
+}
+
+.detail-long {
+  font-size: 0.95rem;
+  color: var(--color-gray);
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.addons-upsell {
+  padding-top: 0;
+}
