@@ -269,7 +269,7 @@ const DEFAULT_CONTENT = {
       price: 399, oldPrice: null, badge: "",
       shortDesc: "Dance floor included + 10 wireless headsets.",
       longDesc: "Dance floor included + 10 wireless headsets.",
-      dimension: "", image: "images/placeholder.svg",
+      dimension: "", image: "images/silent-disco.png",
       position: 2, available: true, url: "", addons: [],
     },
     {
@@ -277,7 +277,7 @@ const DEFAULT_CONTENT = {
       price: 549, oldPrice: null, badge: "",
       shortDesc: "Dance floor included + 30 wireless headsets.",
       longDesc: "Dance floor included + 30 wireless headsets.",
-      dimension: "", image: "images/placeholder.svg",
+      dimension: "", image: "images/silent-disco.png",
       position: 3, available: true, url: "", addons: [],
     },
     {
@@ -285,7 +285,7 @@ const DEFAULT_CONTENT = {
       price: 649, oldPrice: null, badge: "",
       shortDesc: "Dance floor included + 50 wireless headsets.",
       longDesc: "Dance floor included + 50 wireless headsets.",
-      dimension: "", image: "images/placeholder.svg",
+      dimension: "", image: "images/silent-disco.png",
       position: 4, available: true, url: "", addons: [],
     },
 

@@ -1,6 +1,6 @@
 /* ============================================
    MAIN LINE BOUNCE - FEUILLE DE STYLE GLOBALE
-   Version complète et corrigée
+   Version complÃ¨te et corrigÃ©e
    ============================================ */
 
 /* --- Import Google Fonts --- */
@@ -195,7 +195,7 @@ ul   { list-style: none; }
   gap: 14px;
 }
 
-/* Bouton téléphone avec bordure pointillée orange */
+/* Bouton tÃ©lÃ©phone avec bordure pointillÃ©e orange */
 .phone-btn {
   display: flex;
   align-items: center;
@@ -218,7 +218,7 @@ ul   { list-style: none; }
   font-size: 1rem;
 }
 
-/* Hamburger (caché sur desktop) */
+/* Hamburger (cachÃ© sur desktop) */
 .hamburger {
   display: none;
   flex-direction: column;
@@ -239,7 +239,7 @@ ul   { list-style: none; }
   transition: all 0.3s ease;
 }
 
-/* Animation hamburger → X */
+/* Animation hamburger â†’ X */
 .hamburger.active span:nth-child(1) {
   transform: translateY(8px) rotate(45deg);
 }
@@ -339,7 +339,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   ENTÊTE DE PAGE (titre + sous-titre)
+   ENTÃŠTE DE PAGE (titre + sous-titre)
    ============================================ */
 .page-head {
   padding: 48px 0 28px;
@@ -373,31 +373,31 @@ ul   { list-style: none; }
   box-shadow: var(--shadow-card);
 }
 
-.page-head--photo {
+.page-head--intro {
   padding-bottom: 36px;
 }
 
-.page-head--photo .container {
+.page-head--intro .container {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px 48px;
   align-items: end;
 }
 
-.page-head--photo .vibe-kicker {
+.page-head--intro .vibe-kicker {
   grid-column: 1;
   grid-row: 1;
   margin-bottom: 2px;
 }
 
-.page-head--photo h1 {
+.page-head--intro h1 {
   grid-column: 1;
   grid-row: 2;
   margin: 0;
   font-size: 2.6rem;
 }
 
-.page-head--photo p {
+.page-head--intro p {
   grid-column: 2;
   grid-row: 1 / span 2;
   align-self: end;
@@ -438,7 +438,7 @@ ul   { list-style: none; }
   box-shadow: 0 20px 50px rgba(0,0,0,0.12);
 }
 
-/* Zone image produit (fond rose pâle) */
+/* Zone image produit (fond rose pÃ¢le) */
 .product-image {
   background: var(--color-pink-pale);
   border-radius: var(--radius-md);
@@ -504,7 +504,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   GRILLE ÉQUIPEMENTS (Tables & Chairs)
+   GRILLE Ã‰QUIPEMENTS (Tables & Chairs)
    ============================================ */
 .equipment-grid {
   display: grid;
@@ -540,7 +540,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   PAGE DÉTAIL PRODUIT
+   PAGE DÃ‰TAIL PRODUIT
    ============================================ */
 .product-detail {
   padding: 48px 0 80px;
@@ -589,6 +589,72 @@ ul   { list-style: none; }
   color: var(--color-dark);
 }
 
+/* Choix des formules Silent Disco */
+.variant-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dark);
+}
+
+.variant-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 2px solid #f3e6eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.variant-option:hover {
+  border-color: #f6b8d0;
+}
+
+.variant-option:has(input:checked) {
+  border-color: var(--color-pink);
+  background: var(--color-pink-pale);
+}
+
+.variant-option:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.variant-option input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-pink);
+}
+
+.variant-label {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-dark);
+}
+
+.variant-price {
+  font-weight: 800;
+  color: var(--color-pink);
+}
+
 .detail-desc {
   font-size: 0.95rem;
   color: var(--color-gray);
@@ -609,14 +675,14 @@ ul   { list-style: none; }
   color: var(--color-dark);
 }
 
-/* Prix sur page détail */
+/* Prix sur page dÃ©tail */
 .detail-info-card .price-tag {
   font-size: 1.15rem;
   padding: 12px 20px;
   border-radius: 12px;
 }
 
-/* Bloc dimensions sur page détail */
+/* Bloc dimensions sur page dÃ©tail */
 .size-info {
   background: var(--color-pink-pale);
   border-radius: 12px;
@@ -640,7 +706,7 @@ ul   { list-style: none; }
   color: var(--color-pink);
 }
 
-/* Boutons côte à côte */
+/* Boutons cÃ´te Ã  cÃ´te */
 .detail-buttons {
   display: flex;
   gap: 14px;
@@ -673,7 +739,7 @@ ul   { list-style: none; }
   box-shadow: var(--shadow-card);
 }
 
-/* Question (en-tête cliquable) */
+/* Question (en-tÃªte cliquable) */
 .faq-question {
   display: flex;
   justify-content: space-between;
@@ -693,7 +759,7 @@ ul   { list-style: none; }
   background-color: #f0f0f0;
 }
 
-/* Icône +/- */
+/* IcÃ´ne +/- */
 .faq-toggle-icon {
   font-size: 1.4rem;
   font-weight: 700;
@@ -707,7 +773,7 @@ ul   { list-style: none; }
   transform: rotate(45deg);
 }
 
-/* Réponse (masquée par défaut) */
+/* RÃ©ponse (masquÃ©e par dÃ©faut) */
 .faq-answer {
   max-height: 0;
   overflow: hidden;
@@ -827,7 +893,7 @@ ul   { list-style: none; }
    PANIER (Cart)
    ============================================ */
 
-/* Icône panier dans le header */
+/* IcÃ´ne panier dans le header */
 .cart-link {
   position: relative;
   font-size: 1.5rem;
@@ -878,7 +944,7 @@ ul   { list-style: none; }
   width: auto; 
 }
 
-/* Sélecteur de quantité */
+/* SÃ©lecteur de quantitÃ© */
 .cart-qty {
   display: flex;
   align-items: center;
@@ -890,7 +956,7 @@ ul   { list-style: none; }
   line-height: 1;
 }
 
-/* Champ de saisie quantité (remplace l'ancien .cart-qty-num) */
+/* Champ de saisie quantitÃ© (remplace l'ancien .cart-qty-num) */
 .cart-qty-input {
   width: 56px;
   height: 38px;
@@ -906,21 +972,21 @@ ul   { list-style: none; }
   -moz-appearance: textfield;
 }
 
-/* Enlève les flèches natives (Chrome / Safari / Edge) */
+/* EnlÃ¨ve les flÃ¨ches natives (Chrome / Safari / Edge) */
 .cart-qty-input::-webkit-outer-spin-button,
 .cart-qty-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-/* État focus (quand on clique pour taper) */
+/* Ã‰tat focus (quand on clique pour taper) */
 .cart-qty-input:focus {
   outline: none;
   border-color: var(--color-pink);
   box-shadow: 0 0 0 3px rgba(245, 106, 155, 0.15);
 }
 
-/* Hover léger */
+/* Hover lÃ©ger */
 .cart-qty-input:hover {
   border-color: var(--color-pink);
 }
@@ -950,7 +1016,7 @@ ul   { list-style: none; }
   color: var(--color-pink); 
 }
 
-/* Résumé / total */
+/* RÃ©sumÃ© / total */
 .cart-summary {
   background: var(--color-white);
   border-radius: var(--radius-md);
@@ -1009,7 +1075,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   RESPONSIVE — TABLETTE (max 900px)
+   RESPONSIVE â€” TABLETTE (max 900px)
    ============================================ */
 @media (max-width: 1200px) {
   .phone-btn {
@@ -1088,7 +1154,7 @@ ul   { list-style: none; }
     grid-template-columns: 1fr 1fr;
   }
 
-  /* Détail produit */
+  /* DÃ©tail produit */
   .product-detail-inner {
     grid-template-columns: 1fr;
   }
@@ -1105,7 +1171,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   RESPONSIVE — MOBILE (max 600px)
+   RESPONSIVE â€” MOBILE (max 600px)
    ============================================ */
 @media (max-width: 600px) {
 
@@ -1130,7 +1196,7 @@ ul   { list-style: none; }
     font-size: 0.8rem;
   }
 
-  /* Cache le bouton téléphone sur mobile */
+  /* Cache le bouton tÃ©lÃ©phone sur mobile */
   .phone-btn {
     display: none;
   }
@@ -1228,7 +1294,7 @@ ul   { list-style: none; }
    PROMO GRAND OPENING
    ============================================ */
 
-/* --- Bannière d'annonce (page d'accueil) --- */
+/* --- BanniÃ¨re d'annonce (page d'accueil) --- */
 .promo-banner {
   background: var(--color-pink);
   color: #fff;
@@ -1246,7 +1312,7 @@ ul   { list-style: none; }
   animation: promoPulse 2.5s ease-in-out infinite;
 }
 
-/* Effet shimmer qui traverse la bannière */
+/* Effet shimmer qui traverse la banniÃ¨re */
 .promo-banner::before {
   content: '';
   position: absolute;
@@ -1308,10 +1374,10 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   PROMO — PRIX BARRÉ + BADGE + BANNIÈRE PRODUIT
+   PROMO â€” PRIX BARRÃ‰ + BADGE + BANNIÃˆRE PRODUIT
    ============================================ */
 
-/* Prix barré (ancien prix) */
+/* Prix barrÃ© (ancien prix) */
 .price-old {
   color: var(--color-gray);
   text-decoration: line-through;
@@ -1338,7 +1404,7 @@ ul   { list-style: none; }
   box-shadow: 0 4px 12px rgba(230,51,41,0.3);
 }
 
-/* Bannière promo sur page détail produit */
+/* BanniÃ¨re promo sur page dÃ©tail produit */
 .promo-detail {
   background: #e63329;
   color: #fff;
@@ -1366,7 +1432,7 @@ ul   { list-style: none; }
   margin-right: 8px;
 }
 
-/* Compte à rebours */
+/* Compte Ã  rebours */
 .countdown {
   display: flex;
   gap: 12px;
@@ -1391,7 +1457,7 @@ ul   { list-style: none; }
   opacity: 0.9;
 }
 /* ============================================
-   POPUP / MODAL PERSONNALISÉE
+   POPUP / MODAL PERSONNALISÃ‰E
    ============================================ */
 .modal-overlay {
   display: none;
@@ -1552,7 +1618,7 @@ ul   { list-style: none; }
   padding: 30px 0;
 }
 
-/* Photo Booths — large featured product card */
+/* Photo Booths â€” large featured product card */
 #catalog-root[data-page="photo-booths"] .products-grid {
   grid-template-columns: 1fr;
 }
@@ -1604,6 +1670,32 @@ ul   { list-style: none; }
   min-height: 46px;
 }
 
+/* Silent Disco — 2 cards, headset packages grouped */
+#catalog-root[data-page="silent-disco"] .products-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#catalog-root[data-page="silent-disco"] .product-image {
+  height: auto;
+  aspect-ratio: 3 / 2;
+}
+
+#catalog-root[data-page="silent-disco"] .product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  padding: 0;
+}
+
+.product-card--silent-disco .product-image img {
+  object-fit: cover;
+  padding: 0;
+}
+
+.product-card--silent-disco .product-short {
+  display: block;
+}
+
 .product-card.is-unavailable .product-image img {
   filter: grayscale(0.55);
   opacity: 0.65;
@@ -1626,7 +1718,7 @@ ul   { list-style: none; }
 }
 
 /* ============================================
-   CHOOSE YOUR VIBE — tuiles du hero
+   CHOOSE YOUR VIBE â€” tuiles du hero
    ============================================ */
 .hero-tiles {
   display: flex;
@@ -1869,23 +1961,23 @@ ul   { list-style: none; }
     height: 260px;
   }
 
-  .page-head--photo .container {
+  .page-head--intro .container {
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
-  .page-head--photo .vibe-kicker,
-  .page-head--photo h1,
-  .page-head--photo p {
+  .page-head--intro .vibe-kicker,
+  .page-head--intro h1,
+  .page-head--intro p {
     grid-column: 1;
     grid-row: auto;
   }
 
-  .page-head--photo h1 {
+  .page-head--intro h1 {
     font-size: 2.2rem;
   }
 
-  .page-head--photo p {
+  .page-head--intro p {
     max-width: 640px;
   }
 
@@ -1945,8 +2037,12 @@ ul   { list-style: none; }
     height: 210px;
   }
 
-  .page-head--photo h1 {
+  .page-head--intro h1 {
     font-size: 1.7rem;
+  }
+
+  #catalog-root[data-page="silent-disco"] .products-grid {
+    grid-template-columns: 1fr;
   }
 
   #catalog-root[data-page="photo-booths"] .product-image {

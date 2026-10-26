@@ -191,9 +191,9 @@ const DEFAULT_CONTENT = {
 
     /* ----- SILENT DISCO PAGE ----- */
     { id: "dance-floor", name: "Dance Floor Rental", page: "silent-disco", price: 200, oldPrice: null, badge: "", shortDesc: "20 × 20 ft dance floor — indoor or outdoor.", longDesc: "20 × 20 ft dance floor — indoor or outdoor.", dimension: "20 × 20 ft", image: "images/placeholder.svg", position: 1, available: true, url: "", addons: [] },
-    { id: "silent-disco-10", name: "Silent Disco — 10 Headsets", page: "silent-disco", price: 399, oldPrice: null, badge: "", shortDesc: "Dance floor included + 10 wireless headsets.", longDesc: "Dance floor included + 10 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 2, available: true, url: "", addons: [] },
-    { id: "silent-disco-30", name: "Silent Disco — 30 Headsets", page: "silent-disco", price: 549, oldPrice: null, badge: "", shortDesc: "Dance floor included + 30 wireless headsets.", longDesc: "Dance floor included + 30 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 3, available: true, url: "", addons: [] },
-    { id: "silent-disco-50", name: "Silent Disco — 50 Headsets", page: "silent-disco", price: 649, oldPrice: null, badge: "", shortDesc: "Dance floor included + 50 wireless headsets.", longDesc: "Dance floor included + 50 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 4, available: true, url: "", addons: [] },
+    { id: "silent-disco-10", name: "Silent Disco — 10 Headsets", page: "silent-disco", price: 399, oldPrice: null, badge: "", shortDesc: "Dance floor included + 10 wireless headsets.", longDesc: "Dance floor included + 10 wireless headsets.", dimension: "", image: "images/silent-disco.png", position: 2, available: true, url: "", addons: [] },
+    { id: "silent-disco-30", name: "Silent Disco — 30 Headsets", page: "silent-disco", price: 549, oldPrice: null, badge: "", shortDesc: "Dance floor included + 30 wireless headsets.", longDesc: "Dance floor included + 30 wireless headsets.", dimension: "", image: "images/silent-disco.png", position: 3, available: true, url: "", addons: [] },
+    { id: "silent-disco-50", name: "Silent Disco — 50 Headsets", page: "silent-disco", price: 649, oldPrice: null, badge: "", shortDesc: "Dance floor included + 50 wireless headsets.", longDesc: "Dance floor included + 50 wireless headsets.", dimension: "", image: "images/silent-disco.png", position: 4, available: true, url: "", addons: [] },
 
     /* ----- PHOTO BOOTHS PAGE ----- */
     { id: "photo-booth-rental", name: "Photo Booth Rental", page: "photo-booths", price: null, oldPrice: null, badge: "", shortDesc: "Photo booth with unlimited prints, fun props and a friendly attendant.", longDesc: "Make your event unforgettable with our photo booth rental. Includes unlimited prints, a wide selection of props and a friendly attendant. Perfect for birthdays, weddings, corporate events and more. Call us for a custom quote.", dimension: "", image: "images/photo-booths.webp", position: 1, available: true, url: "", addons: [] },
@@ -301,6 +301,64 @@ function detailUrl(product) {
   const custom = safeUrl(product.url);
   if (custom) return custom;
   return "product.html?id=" + encodeURIComponent(product.id);
+}
+
+/* ---------- Silent Disco packages ---------- */
+function isSilentDiscoVariant(p) {
+  return Boolean(p) && p.page === "silent-disco" && p.id !== "dance-floor";
+}
+
+function headsetLabel(p) {
+  const match = String(p.name || "").match(/(\d+)\s*headsets?/i);
+  return match ? match[1] + " headsets" : String(p.name || "");
+}
+
+function silentDiscoVariantImage(p) {
+  const image = safeImage(p && p.image);
+  return image === "images/placeholder.svg" ? "images/silent-disco.png" : image;
+}
+
+function silentDiscoGroupImage(variants) {
+  const custom = variants.find(function (p) {
+    return safeImage(p.image) !== "images/placeholder.svg";
+  });
+  return custom ? safeImage(custom.image) : "images/silent-disco.png";
+}
+
+function silentDiscoCardHTML(variants) {
+  const available = variants.filter(function (p) { return p.available !== false; });
+  const usable = available.length ? available : variants;
+  const prices = usable
+    .map(function (p) { return Number(p.price); })
+    .filter(function (n) { return Number.isFinite(n) && n > 0; });
+  const fromPrice = prices.length ? Math.min.apply(null, prices) : null;
+  const first = usable[0];
+  const quantities = usable
+    .map(function (p) {
+      const match = String(p.name || "").match(/(\d+)\s*headsets?/i);
+      return match ? match[1] : "";
+    })
+    .filter(Boolean);
+  const options = quantities.length
+    ? quantities.slice(0, -1).join(", ") +
+      (quantities.length > 1 ? " or " : "") +
+      quantities[quantities.length - 1] +
+      " headsets"
+    : "wireless headsets";
+
+  return (
+    '<article class="product-card product-card--silent-disco' + (available.length ? "" : " is-unavailable") + '">' +
+      '<div class="product-image"><img src="' + esc(silentDiscoGroupImage(usable)) + '" alt="Silent disco party with wireless headphones" loading="lazy" /></div>' +
+      '<div class="product-card-body">' +
+        "<h3>Silent Disco</h3>" +
+        '<p class="product-short">Dance floor included. Choose ' + esc(options) + ".</p>" +
+        '<span class="price-tag">' + (fromPrice !== null ? "From " + money(fromPrice) : "Call for price") + "</span>" +
+        (available.length
+          ? '<a href="product.html?id=' + encodeURIComponent(first.id) + '" class="btn btn-pink btn-sm">Choose package</a>'
+          : '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>') +
+      "</div>" +
+    "</article>"
+  );
 }
 
 /* ---------- Loading ---------- */
@@ -454,6 +512,22 @@ function renderCatalog(root, content) {
         String(a.name || "").localeCompare(String(b.name || ""));
     });
 
+  if (page === "silent-disco") {
+    const danceFloor = items.filter(function (p) { return p.id === "dance-floor"; });
+    const variants = items.filter(isSilentDiscoVariant);
+    const others = items.filter(function (p) {
+      return p.id !== "dance-floor" && !isSilentDiscoVariant(p);
+    });
+    const cards = danceFloor.map(productCardHTML);
+    if (variants.length) cards.push(silentDiscoCardHTML(variants));
+    cards.push.apply(cards, others.map(productCardHTML));
+    root.innerHTML = cards.length
+      ? '<div class="products-grid">' + cards.join("") + "</div>"
+      : '<p class="catalog-empty">No products available right now.</p>';
+    bindAddButtons(root);
+    return;
+  }
+
   root.innerHTML = items.length
     ? '<div class="products-grid">' + items.map(productCardHTML).join("") + "</div>"
     : '<p class="catalog-empty">No products available right now.</p>';
@@ -462,6 +536,107 @@ function renderCatalog(root, content) {
 }
 
 /* ---------- Product detail page ---------- */
+function renderSilentDiscoPage(root, variants, initialId) {
+  const available = variants.filter(function (p) { return p.available !== false; });
+  const initial =
+    variants.find(function (p) { return p.id === initialId && p.available !== false; }) ||
+    available[0] ||
+    variants[0];
+
+  if (!initial) return;
+
+  const optionsHTML = variants.map(function (p) {
+    const disabled = p.available === false;
+    return (
+      '<label class="variant-option' + (disabled ? " is-disabled" : "") + '">' +
+        '<input type="radio" name="sd-variant" value="' + esc(p.id) + '"' +
+          (p.id === initial.id ? " checked" : "") +
+          (disabled ? " disabled" : "") + ">" +
+        '<span class="variant-label">' + esc(headsetLabel(p)) + "</span>" +
+        '<span class="variant-price">' + (p.price != null ? money(p.price) : "Call") + "</span>" +
+      "</label>"
+    );
+  }).join("");
+
+  const initialImage = silentDiscoVariantImage(initial);
+  const initialDesc =
+    initial.longDesc && initial.longDesc !== initial.shortDesc
+      ? initial.longDesc
+      : initial.shortDesc;
+
+  const actions = initial.available === false
+    ? '<a href="tel:2674053125" class="btn btn-pink">📞 Currently unavailable - call us</a>'
+    : '<button class="btn btn-pink" id="sd-add" data-add-to-cart' +
+        ' data-id="' + esc(initial.id) +
+        '" data-name="' + esc(initial.name) +
+        '" data-price="' + esc(initial.price) +
+        '" data-image="' + esc(initialImage) + '">Add to cart</button>' +
+      '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
+
+  root.innerHTML =
+    '<section class="product-detail">' +
+      '<div class="container">' +
+        '<div class="product-detail-inner">' +
+          '<div class="detail-image-card"><img src="' + esc(initialImage) + '" alt="' + esc(initial.name) + '" /></div>' +
+          '<div class="detail-info-card">' +
+            "<h1>Silent Disco</h1>" +
+            '<p class="detail-desc" id="sd-desc">' + esc(initialDesc) + "</p>" +
+            '<div class="variant-picker">' +
+              '<h3 class="variant-title">Choose your package</h3>' +
+              '<div class="variant-options">' + optionsHTML + "</div>" +
+            "</div>" +
+            '<span class="price-tag" id="sd-price">' +
+              (initial.price != null ? money(initial.price) : "Call for price") +
+            "</span>" +
+            '<div class="detail-buttons">' + actions + "</div>" +
+            '<a href="silent-disco.html" class="btn btn-outline btn-sm">← Back to Silent Disco</a>' +
+          "</div>" +
+        "</div>" +
+      "</div>" +
+    "</section>";
+
+  root.querySelectorAll('input[name="sd-variant"]').forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      const chosen = variants.find(function (p) { return p.id === radio.value; });
+      if (!chosen) return;
+
+      const chosenImage = silentDiscoVariantImage(chosen);
+      const image = root.querySelector(".detail-image-card img");
+      if (image) {
+        image.src = chosenImage;
+        image.alt = chosen.name;
+      }
+
+      const desc = root.querySelector("#sd-desc");
+      if (desc) {
+        desc.textContent =
+          chosen.longDesc && chosen.longDesc !== chosen.shortDesc
+            ? chosen.longDesc
+            : chosen.shortDesc;
+      }
+
+      const price = root.querySelector("#sd-price");
+      if (price) {
+        price.textContent = chosen.price != null ? money(chosen.price) : "Call for price";
+      }
+
+      const add = root.querySelector("#sd-add");
+      if (add) {
+        add.dataset.id = chosen.id;
+        add.dataset.name = chosen.name;
+        add.dataset.price = chosen.price;
+        add.dataset.image = chosenImage;
+      }
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("id", chosen.id);
+      history.replaceState(null, "", url);
+    });
+  });
+
+  bindAddButtons(root);
+}
+
 function renderProductPage(root, content, product) {
   const addonList = (product.addons || [])
     .map(function (id) {
@@ -594,8 +769,27 @@ document.addEventListener("DOMContentLoaded", async function () {
           "</div>" +
         "</div></section>";
     } else {
-      document.title = product.name + " – Main Line Bounce";
-      renderProductPage(productRoot, content, product);
+      const pageLink = PAGE_LINKS[product.page] || PAGE_LINKS.inflatables;
+      document.querySelectorAll(".main-nav a.active").forEach(function (link) {
+        link.classList.remove("active");
+      });
+      const activeLink = document.querySelector('.main-nav a[href="' + pageLink.href + '"]');
+      if (activeLink) activeLink.classList.add("active");
+
+      if (isSilentDiscoVariant(product)) {
+        const variants = content.products
+          .filter(isSilentDiscoVariant)
+          .slice()
+          .sort(function (a, b) {
+            return (Number(a.position) || 0) - (Number(b.position) || 0) ||
+              String(a.name || "").localeCompare(String(b.name || ""));
+          });
+        document.title = "Silent Disco – Main Line Bounce";
+        renderSilentDiscoPage(productRoot, variants, product.id);
+      } else {
+        document.title = product.name + " – Main Line Bounce";
+        renderProductPage(productRoot, content, product);
+      }
     }
   }
 });
