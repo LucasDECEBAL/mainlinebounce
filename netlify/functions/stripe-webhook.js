@@ -2,6 +2,7 @@
 // puis envoie les infos à Discord
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const { sendBookingEmail } = require("./booking-email");
+const { recordBooking } = require("./bookings-store");
 
 const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK;
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
@@ -35,6 +36,27 @@ exports.handler = async (event) => {
 
     // Total payé (Stripe renvoie en cents)
     const total = (session.amount_total / 100).toFixed(2);
+
+    // ✅ Sauvegarde du booking (pour l'export Excel dans l'admin)
+    try {
+      await recordBooking({
+        date: m.date,
+        name: m.name,
+        email: m.email || session.customer_email,
+        phone: m.phone,
+        address: m.address,
+        location: m.location,
+        guests: m.guests,
+        comments: m.comments,
+        items: m.items,
+        total,
+        payment: "paid",
+        stripeSessionId: session.id,
+      });
+      console.log("✅ Booking enregistré pour l'export Excel");
+    } catch (err) {
+      console.error("❌ Erreur sauvegarde booking:", err);
+    }
 
     const discordMessage = {
       embeds: [{

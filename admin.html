@@ -8,6 +8,9 @@
   <!-- ✅ Site theme -->
   <link rel="stylesheet" href="css/style.css">
 
+  <!-- SheetJS : génération du fichier Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <style>
   /* ===== ADMIN — matches the Main Line Bounce theme ===== */
   .admin-wrap{
@@ -276,6 +279,69 @@
     gap: 12px;
   }
 
+  /* Bookings */
+  .bookings-toolbar{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .bookings-toolbar input{
+    flex: 1;
+    min-width: 200px;
+    margin: 0;
+  }
+  .toolbar-btn{
+    background: #fff;
+    border: 2px solid var(--color-pink-pale);
+    border-radius: var(--radius-pill);
+    padding: 10px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--color-dark);
+    transition: all 0.2s ease;
+  }
+  .toolbar-btn:hover{
+    border-color: var(--color-pink);
+  }
+  .toolbar-btn.primary{
+    background: var(--color-pink);
+    border-color: var(--color-pink);
+    color: #fff;
+  }
+  .table-scroll{
+    overflow-x: auto;
+  }
+  .bookings-summary{
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-gray);
+    margin-bottom: 10px;
+  }
+  .articles-table th.sortable{
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .articles-table th.sortable:hover{
+    color: var(--color-pink);
+  }
+  .pay-tag{
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.72rem;
+    background: #e8f8ee;
+    color: #1e8e4e;
+  }
+  .pay-tag.onsite{
+    background: #fff4e5;
+    color: #b76a00;
+  }
+
   @media (max-width: 720px){
     .addons-grid{ grid-template-columns: 1fr; }
     .articles-table th:nth-child(4),
@@ -311,6 +377,7 @@
 
       <div class="tabs">
         <button class="tab active" data-tab="dates">📅 Blocked dates</button>
+        <button class="tab" data-tab="bookings">📒 Bookings</button>
         <button class="tab" data-tab="banners">🖼️ Banners</button>
         <button class="tab" data-tab="faq">❓ FAQ</button>
         <button class="tab" data-tab="articles">🎈 Products</button>
@@ -343,6 +410,21 @@
         <div class="box">
           <h3>📅 Currently blocked dates</h3>
           <div class="list" id="blockedList">Loading...</div>
+        </div>
+      </div>
+
+      <!-- ---------- BOOKINGS TAB ---------- -->
+      <div class="tab-panel" id="tab-bookings" style="display:none;">
+        <div class="box">
+          <h3>Bookings</h3>
+          <div class="bookings-toolbar">
+            <input type="text" id="bookingsSearch" placeholder="Search name, email, phone, location…">
+            <button class="toolbar-btn" id="refreshBookingsBtn">↻ Refresh</button>
+            <button class="toolbar-btn primary" id="exportBookingsBtn">⬇ Export Excel</button>
+          </div>
+          <div class="bookings-summary" id="bookingsSummary"></div>
+          <div class="table-scroll" id="bookingsTable"></div>
+          <div class="status" id="bookingsStatus"></div>
         </div>
       </div>
 
@@ -558,6 +640,7 @@
       renderFaqAdmin();
       renderArticles();
       loadBlocked();
+      loadBookings();
     }
 
     /* ============================================
@@ -1021,6 +1104,244 @@
     }
 
     /* ============================================
+       BOOKINGS
+       ============================================ */
+    const API_BOOKINGS = "/.netlify/functions/bookings";
+
+    let bookings = [];
+    let bookingsLoaded = false;
+    let bookingSort = { key: "createdAt", dir: -1 };
+    let bookingSearch = "";
+
+    const BOOKING_COLUMNS = [
+      { key: "createdAt", label: "Booked" },
+      { key: "eventDate", label: "Event date" },
+      { key: "name", label: "Customer" },
+      { key: "phone", label: "Phone" },
+      { key: "email", label: "Email" },
+      { key: "location", label: "Location" },
+      { key: "guests", label: "Guests" },
+      { key: "items", label: "Items" },
+      { key: "total", label: "Total" },
+      { key: "payment", label: "Payment" }
+    ];
+
+    async function loadBookings(force) {
+      if (bookingsLoaded && !force) return;
+
+      const status = document.getElementById("bookingsStatus");
+      status.textContent = "⏳ Loading...";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        const res = await fetch(API_BOOKINGS, {
+          headers: { "x-admin-key": adminKey },
+          cache: "no-store"
+        });
+
+        if (res.status === 401) { logout(); return; }
+        if (!res.ok) throw new Error("HTTP " + res.status);
+
+        const data = await res.json();
+        bookings = data.bookings || [];
+        bookingsLoaded = true;
+        status.textContent = "";
+        renderBookings();
+      } catch (e) {
+        status.textContent = "❌ Failed to load bookings";
+        status.style.color = "#e63329";
+      }
+    }
+
+    function getFilteredBookings() {
+      const q = bookingSearch.trim().toLowerCase();
+      let list = bookings.slice();
+
+      if (q) {
+        list = list.filter(function (b) {
+          return [b.name, b.email, b.phone, b.location, b.items, b.address]
+            .some(function (v) { return String(v || "").toLowerCase().indexOf(q) !== -1; });
+        });
+      }
+
+      const key = bookingSort.key;
+      const dir = bookingSort.dir;
+
+      list.sort(function (a, b) {
+        let va = a[key];
+        let vb = b[key];
+
+        if (key === "total") {
+          va = Number(va) || 0;
+          vb = Number(vb) || 0;
+        } else {
+          va = String(va || "").toLowerCase();
+          vb = String(vb || "").toLowerCase();
+        }
+
+        if (va < vb) return -dir;
+        if (va > vb) return dir;
+        return 0;
+      });
+
+      return list;
+    }
+
+    function renderBookings() {
+      const tableRoot = document.getElementById("bookingsTable");
+      const summary = document.getElementById("bookingsSummary");
+      const list = getFilteredBookings();
+
+      const paidTotal = list
+        .filter(function (b) { return b.payment === "paid"; })
+        .reduce(function (s, b) { return s + (Number(b.total) || 0); }, 0);
+      const onsiteTotal = list
+        .filter(function (b) { return b.payment !== "paid"; })
+        .reduce(function (s, b) { return s + (Number(b.total) || 0); }, 0);
+
+      summary.textContent =
+        list.length + " booking" + (list.length === 1 ? "" : "s") +
+        " • " + money(paidTotal) + " paid online" +
+        " • " + money(onsiteTotal) + " pay on site";
+
+      if (!list.length) {
+        tableRoot.innerHTML = '<p style="color:var(--color-gray);">No bookings yet.</p>';
+        return;
+      }
+
+      const head = BOOKING_COLUMNS.map(function (c) {
+        const arrow = bookingSort.key === c.key ? (bookingSort.dir === 1 ? " ▲" : " ▼") : "";
+        return '<th class="sortable" data-sort="' + c.key + '">' + c.label + arrow + "</th>";
+      }).join("");
+
+      const rows = list.map(function (b) {
+        const payLabel = b.payment === "paid" ? "Paid online" : "Pay on site";
+        const payClass = b.payment === "paid" ? "pay-tag" : "pay-tag onsite";
+
+        return (
+          "<tr>" +
+            "<td>" + escapeHtml(formatDateTime(b.createdAt)) + "</td>" +
+            "<td>" + escapeHtml(b.eventDate || "—") + "</td>" +
+            "<td><strong>" + escapeHtml(b.name || "—") + "</strong></td>" +
+            "<td>" + escapeHtml(b.phone || "—") + "</td>" +
+            "<td>" + escapeHtml(b.email || "—") + "</td>" +
+            "<td>" + escapeHtml(b.location || "—") + "</td>" +
+            "<td>" + escapeHtml(b.guests || "—") + "</td>" +
+            '<td style="max-width:260px;">' + escapeHtml(String(b.items || "").replace(/\n/g, " · ")) + "</td>" +
+            "<td><strong>" + money(Number(b.total) || 0) + "</strong></td>" +
+            '<td><span class="' + payClass + '">' + payLabel + "</span></td>" +
+            '<td><button class="row-btn del" data-booking-del="' + escapeAttr(b.id) + '">Delete</button></td>' +
+          "</tr>"
+        );
+      }).join("");
+
+      tableRoot.innerHTML =
+        '<table class="articles-table">' +
+          "<thead><tr>" + head + "<th></th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+        "</table>";
+
+      tableRoot.querySelectorAll("[data-sort]").forEach(function (th) {
+        th.addEventListener("click", function () {
+          const key = th.getAttribute("data-sort");
+          if (bookingSort.key === key) {
+            bookingSort.dir *= -1;
+          } else {
+            bookingSort.key = key;
+            bookingSort.dir = 1;
+          }
+          renderBookings();
+        });
+      });
+
+      tableRoot.querySelectorAll("[data-booking-del]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          if (!confirm("Delete this booking? This cannot be undone.")) return;
+
+          const id = btn.getAttribute("data-booking-del");
+          try {
+            const res = await fetch(API_BOOKINGS, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+              body: JSON.stringify({ action: "delete", id: id })
+            });
+
+            if (res.status === 401) { logout(); return; }
+            if (!res.ok) throw new Error("HTTP " + res.status);
+
+            bookings = bookings.filter(function (b) { return b.id !== id; });
+            renderBookings();
+          } catch (e) {
+            const status = document.getElementById("bookingsStatus");
+            status.textContent = "❌ Delete failed";
+            status.style.color = "#e63329";
+          }
+        });
+      });
+    }
+
+    function formatDateTime(value) {
+      if (!value) return "—";
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return String(value);
+      return d.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function exportBookingsExcel() {
+      const status = document.getElementById("bookingsStatus");
+
+      if (typeof XLSX === "undefined") {
+        status.textContent = "❌ Excel library not loaded — check your internet connection";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const list = getFilteredBookings();
+      if (!list.length) {
+        status.textContent = "❌ No bookings to export";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const rows = list.map(function (b) {
+        return {
+          "Booking ID": b.id,
+          "Booked at": formatDateTime(b.createdAt),
+          "Event date": b.eventDate || "",
+          "Customer": b.name || "",
+          "Phone": b.phone || "",
+          "Email": b.email || "",
+          "Address": b.address || "",
+          "Location": b.location || "",
+          "Guests": b.guests || "",
+          "Items": String(b.items || "").replace(/\n/g, " | "),
+          "Total": Number(b.total) || 0,
+          "Payment": b.payment === "paid" ? "Paid online" : "Pay on site",
+          "Comments": b.comments || ""
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 26 },
+        { wch: 28 }, { wch: 20 }, { wch: 8 }, { wch: 50 }, { wch: 10 }, { wch: 14 }, { wch: 40 }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+      XLSX.writeFile(wb, "mainlinebounce-bookings-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+
+      status.textContent = "✅ Excel file downloaded (" + rows.length + " bookings)";
+      status.style.color = "#27ae60";
+    }
+
+    /* ============================================
        HELPERS
        ============================================ */
     function escapeHtml(value) {
@@ -1034,6 +1355,11 @@
 
     function escapeAttr(value) {
       return escapeHtml(value);
+    }
+
+    function money(value) {
+      const n = Number(value) || 0;
+      return "$" + (Math.round(n * 100) / 100).toString().replace(/\.00$/, "");
     }
 
     function slugify(value) {
@@ -1069,6 +1395,15 @@
     });
     document.getElementById("newFaqBtn").addEventListener("click", function () {
       openFaqForm(null);
+    });
+
+    document.getElementById("refreshBookingsBtn").addEventListener("click", function () {
+      loadBookings(true);
+    });
+    document.getElementById("exportBookingsBtn").addEventListener("click", exportBookingsExcel);
+    document.getElementById("bookingsSearch").addEventListener("input", function (e) {
+      bookingSearch = e.target.value;
+      renderBookings();
     });
 
     document.querySelectorAll(".tab").forEach(function (tab) {

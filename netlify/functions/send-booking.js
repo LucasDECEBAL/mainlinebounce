@@ -1,5 +1,6 @@
 // netlify/functions/send-booking.js
 const { sendBookingEmail } = require("./booking-email");
+const { recordBooking } = require("./bookings-store");
 
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -63,6 +64,25 @@ exports.handler = async (event) => {
       });
     } catch (emailError) {
       console.error("❌ Email notification failed:", emailError);
+    }
+
+    // ✅ Sauvegarde du booking (pour l'export Excel dans l'admin)
+    try {
+      await recordBooking({
+        date: customer.date,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        location: customer.location,
+        guests: customer.guests,
+        comments: customer.comments,
+        items: cartText,
+        total,
+        payment: "pay_on_site",
+      });
+    } catch (storeError) {
+      console.error("❌ Booking save failed:", storeError);
     }
 
     return {
