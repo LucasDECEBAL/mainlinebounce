@@ -22,7 +22,33 @@
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net; frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com https://*.doubleclick.net https://*.google.com https://*.g.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; upgrade-insecure-requests"
 
 # The admin panel is private: keep it out of search engines.
+# "/admin*" covers both /admin and /admin.html.
 [[headers]]
-  for = "/admin.html"
+  for = "/admin*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+
+# Never serve server-side sources or package metadata.
+[[redirects]]
+  from = "/netlify/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package-lock.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/trailer-video/*"
+  to = "/404.html"
+  status = 404
+  force = true
