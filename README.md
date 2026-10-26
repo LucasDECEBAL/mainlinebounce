@@ -90,14 +90,14 @@ up front, Netlify Functions and Netlify Blobs at the back, Stripe for payments.
 ## Architecture
 
 ```mermaid
-flowchart LR
-  C[Customer] --> S[Static site]
-  A[Admin] --> S
-  S -->|/.netlify/functions| F[Netlify Functions]
-  F --> B[(Netlify Blobs)]
-  F --> P[Stripe]
-  P -->|webhook| F
-  F --> M[SMTP / Discord]
+flowchart TD
+  C["Customer"] --> S["Static site<br/>HTML · CSS · JS"]
+  A["Admin panel"] --> S
+  S -->|"API calls"| F["Netlify Functions<br/>content · bookings · blocked dates · checkout"]
+  F --> B[("Netlify Blobs<br/>content · bookings · blocked dates")]
+  F -->|"create session"| P["Stripe Checkout"]
+  P -->|"webhook"| F
+  F -->|"notify"| M["Email + Discord"]
 ```
 
 | Function | Role | Storage |
