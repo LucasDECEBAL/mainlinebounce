@@ -568,6 +568,16 @@
             (like Silent Disco). Bundle = all included products are sold together at the package price.
             Choice + included = the customer picks one option and the other items are included (like Party Package).
           </p>
+          <div class="bookings-toolbar" style="margin-bottom:14px;">
+            <select id="packageFilterPage" style="width:auto; margin:0;">
+              <option value="all">All pages</option>
+              <option value="inflatables">Inflatables</option>
+              <option value="addons">Add-ons</option>
+              <option value="silent-disco">Silent Disco</option>
+              <option value="photo-booths">Photo Booths</option>
+            </select>
+            <span id="packageCount" style="font-weight:700; color:var(--color-gray); font-size:0.88rem; align-self:center;"></span>
+          </div>
           <div id="packagesTable"></div>
           <button class="block-btn" id="newPackageBtn">+ New package</button>
         </div>
@@ -1064,6 +1074,7 @@
        PRODUCTS
        ============================================ */
     let articleFilterPage = "all";
+    let packageFilterPage = "all";
     let showPackagedProducts = false;
 
     function packageChoices(pkg) {
@@ -1114,14 +1125,25 @@
       const root = document.getElementById("packagesTable");
       if (!root) return;
 
-      const packages = (content.packages || []).slice().sort(function (a, b) {
+      const allPackages = (content.packages || []).slice().sort(function (a, b) {
         return (PAGE_ORDER.indexOf(a.page || "inflatables") - PAGE_ORDER.indexOf(b.page || "inflatables")) ||
           (Number(a.position) || 0) - (Number(b.position) || 0) ||
           String(a.name || "").localeCompare(String(b.name || ""));
       });
+      const packages = packageFilterPage === "all"
+        ? allPackages
+        : allPackages.filter(function (pkg) {
+            return (pkg.page || "inflatables") === packageFilterPage;
+          });
+      const countEl = document.getElementById("packageCount");
+      if (countEl) {
+        countEl.textContent = packages.length + " package" + (packages.length === 1 ? "" : "s");
+      }
 
       if (!packages.length) {
-        root.innerHTML = '<p style="color:var(--color-gray);">No packages yet.</p>';
+        root.innerHTML = '<p style="color:var(--color-gray);">' +
+          (packageFilterPage === "all" ? "No packages yet." : "No packages for this page.") +
+          "</p>";
         return;
       }
 
@@ -1267,7 +1289,7 @@
       document.getElementById("pkg-name").value = pkg ? pkg.name : "";
       document.getElementById("pkg-page").value = pkg
         ? (pkg.page || "inflatables")
-        : (articleFilterPage === "all" ? "inflatables" : articleFilterPage);
+        : (packageFilterPage !== "all" ? packageFilterPage : (articleFilterPage === "all" ? "inflatables" : articleFilterPage));
       const type = pkg && (pkg.type === "bundle" || pkg.type === "mixed") ? pkg.type : "choice";
       document.getElementById("pkg-type").value = type;
       document.getElementById("pkg-price").value = pkg && pkg.price != null ? pkg.price : "";
@@ -1381,6 +1403,10 @@
       if (ok) {
         articleFilterPage = page;
         document.getElementById("articleFilterPage").value = page;
+        if (packageFilterPage !== "all") {
+          packageFilterPage = page;
+          document.getElementById("packageFilterPage").value = page;
+        }
         renderPackages();
         renderArticles();
         openPackageForm(pkg.id);
@@ -2307,6 +2333,10 @@
     document.getElementById("articleFilterPage").addEventListener("change", function (e) {
       articleFilterPage = e.target.value;
       renderArticles();
+    });
+    document.getElementById("packageFilterPage").addEventListener("change", function (e) {
+      packageFilterPage = e.target.value;
+      renderPackages();
     });
 
     document.getElementById("saveFaqBtn").addEventListener("click", saveFaq);
