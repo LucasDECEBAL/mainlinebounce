@@ -538,6 +538,15 @@
       <div class="tab-panel" id="tab-articles" style="display:none;">
         <div class="box">
           <h3>Products</h3>
+          <div class="bookings-toolbar" style="margin-bottom:14px;">
+            <select id="articleFilterPage" style="width:auto; margin:0;">
+              <option value="all">All pages</option>
+              <option value="inflatables">Inflatables</option>
+              <option value="addons">Add-ons</option>
+              <option value="silent-disco">Silent Disco</option>
+            </select>
+            <span id="articleCount" style="font-weight:700; color:var(--color-gray); font-size:0.88rem; align-self:center;"></span>
+          </div>
           <div id="articlesTable"></div>
           <button class="block-btn" id="newArticleBtn">➕ New product</button>
         </div>
@@ -912,6 +921,8 @@
     /* ============================================
        PRODUCTS
        ============================================ */
+    let articleFilterPage = "all";
+
     function normalizeAdminPositions(products) {
       const out = [];
       PAGE_ORDER.forEach(function (page) {
@@ -929,14 +940,26 @@
 
     function renderArticles() {
       const root = document.getElementById("articlesTable");
-      const products = (content.products || []).slice().sort(function (a, b) {
+      const countEl = document.getElementById("articleCount");
+
+      const allProducts = (content.products || []).slice().sort(function (a, b) {
         return (PAGE_ORDER.indexOf(a.page || "inflatables") - PAGE_ORDER.indexOf(b.page || "inflatables")) ||
           (a.position - b.position) ||
           String(a.name || "").localeCompare(String(b.name || ""));
       });
 
+      const products = articleFilterPage === "all"
+        ? allProducts
+        : allProducts.filter(function (p) {
+            return (p.page || "inflatables") === articleFilterPage;
+          });
+
+      if (countEl) {
+        countEl.textContent = products.length + " product" + (products.length === 1 ? "" : "s");
+      }
+
       if (!products.length) {
-        root.innerHTML = '<p style="color:var(--color-gray);">No products yet. Click "New product".</p>';
+        root.innerHTML = '<p style="color:var(--color-gray);">No products on this page yet.</p>';
         return;
       }
 
@@ -1046,7 +1069,9 @@
 
       document.getElementById("articleFormTitle").textContent = product ? "Edit product" : "New product";
       document.getElementById("a-id").value = product ? product.id : "";
-      const page = product ? (product.page || "inflatables") : "inflatables";
+      const page = product
+        ? (product.page || "inflatables")
+        : (articleFilterPage === "all" ? "inflatables" : articleFilterPage);
       document.getElementById("a-page").value = page;
       document.getElementById("a-name").value = product ? product.name : "";
       document.getElementById("a-price").value = product && product.price != null ? product.price : "";
@@ -1146,6 +1171,10 @@
 
       const ok = await saveContent(status, "Product saved");
       if (ok) {
+        if (!existingId) {
+          articleFilterPage = product.page || "inflatables";
+          document.getElementById("articleFilterPage").value = articleFilterPage;
+        }
         renderArticles();
         renderItemOptions();
         loadBlocked();
@@ -1777,6 +1806,10 @@
     });
     document.getElementById("newArticleBtn").addEventListener("click", function () {
       openArticleForm(null);
+    });
+    document.getElementById("articleFilterPage").addEventListener("change", function (e) {
+      articleFilterPage = e.target.value;
+      renderArticles();
     });
 
     document.getElementById("saveFaqBtn").addEventListener("click", saveFaq);
