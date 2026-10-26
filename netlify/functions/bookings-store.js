@@ -70,6 +70,40 @@ async function deleteBooking(id) {
   return next;
 }
 
+async function updateBooking(id, patch) {
+  const list = await getBookings();
+  const index = list.findIndex((b) => b.id === id);
+  if (index === -1) return null;
+
+  const current = list[index];
+  const pick = (value, max, fallback) =>
+    value === undefined ? fallback : clean(value, max);
+
+  const updated = {
+    ...current,
+    eventDate: pick(patch.eventDate, 20, current.eventDate),
+    name: pick(patch.name, 100, current.name),
+    email: pick(patch.email, 150, current.email),
+    phone: pick(patch.phone, 40, current.phone),
+    address: pick(patch.address, 200, current.address),
+    location: pick(patch.location, 100, current.location),
+    guests: pick(patch.guests, 20, current.guests),
+    items: pick(patch.items, 1000, current.items),
+    comments: pick(patch.comments, 500, current.comments),
+    total: patch.total === undefined
+      ? current.total
+      : Math.round((Number(patch.total) || 0) * 100) / 100,
+    payment:
+      patch.payment === "paid" || patch.payment === "pay_on_site"
+        ? patch.payment
+        : current.payment,
+  };
+
+  list[index] = updated;
+  await store().set(KEY, JSON.stringify(list));
+  return updated;
+}
+
 /* ============================================
    CLIENTS HISTORIQUES (import unique depuis Stripe)
    ============================================ */
@@ -142,5 +176,6 @@ module.exports = {
   getBookings,
   recordBooking,
   deleteBooking,
+  updateBooking,
   ensureHistoricalBookings,
 };

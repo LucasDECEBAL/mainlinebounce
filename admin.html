@@ -424,9 +424,6 @@
           <h3>Bookings</h3>
           <div class="bookings-toolbar">
             <input type="text" id="bookingsSearch" placeholder="Search name, email, phone, location…">
-            <select id="bookingsCountry">
-              <option value="all">All countries</option>
-            </select>
             <select id="bookingsPayment">
               <option value="all">All payments</option>
               <option value="paid">Paid online</option>
@@ -438,6 +435,53 @@
           <div class="bookings-summary" id="bookingsSummary"></div>
           <div class="table-scroll" id="bookingsTable"></div>
           <div class="status" id="bookingsStatus"></div>
+        </div>
+
+        <div class="box" id="bookingFormBox" style="display:none;">
+          <h3 id="bookingFormTitle">Edit booking</h3>
+          <input type="hidden" id="bk-id">
+
+          <label>Customer name</label>
+          <input type="text" id="bk-name" maxlength="100">
+
+          <label>Phone</label>
+          <input type="text" id="bk-phone" maxlength="40">
+
+          <label>Email</label>
+          <input type="text" id="bk-email" maxlength="150">
+
+          <label>Event date</label>
+          <input type="date" id="bk-eventdate">
+
+          <label>Address</label>
+          <input type="text" id="bk-address" maxlength="200">
+
+          <label>Location</label>
+          <input type="text" id="bk-location" maxlength="100">
+
+          <label>Guests</label>
+          <input type="text" id="bk-guests" maxlength="20">
+
+          <label>Items</label>
+          <textarea id="bk-items" rows="3" maxlength="1000"></textarea>
+
+          <label>Total ($)</label>
+          <input type="number" id="bk-total" min="0" step="0.01">
+
+          <label>Payment</label>
+          <select id="bk-payment">
+            <option value="paid">Paid online</option>
+            <option value="pay_on_site">Pay on site</option>
+          </select>
+
+          <label>Comments</label>
+          <textarea id="bk-comments" rows="3" maxlength="500"></textarea>
+
+          <div class="form-actions">
+            <button class="block-btn" id="saveBookingBtn" style="margin-top:8px;">💾 Save</button>
+            <button class="unblock-btn" id="cancelBookingBtn" style="margin-top:8px;">Cancel</button>
+          </div>
+          <div class="status" id="bookingFormStatus"></div>
         </div>
       </div>
 
@@ -1125,7 +1169,6 @@
     let bookingsLoaded = false;
     let bookingSort = { key: "createdAt", dir: -1 };
     let bookingSearch = "";
-    let bookingFilterCountry = "all";
     let bookingFilterPayment = "all";
 
     const BOOKING_COLUMNS = [
@@ -1135,7 +1178,6 @@
       { key: "phone", label: "Phone" },
       { key: "email", label: "Email" },
       { key: "location", label: "Location" },
-      { key: "country", label: "Country" },
       { key: "guests", label: "Guests" },
       { key: "items", label: "Items" },
       { key: "total", label: "Total" },
@@ -1173,12 +1215,6 @@
       const q = bookingSearch.trim().toLowerCase();
       let list = bookings.slice();
 
-      if (bookingFilterCountry !== "all") {
-        list = list.filter(function (b) {
-          return String(b.country || "").toLowerCase() === bookingFilterCountry.toLowerCase();
-        });
-      }
-
       if (bookingFilterPayment !== "all") {
         list = list.filter(function (b) {
           return bookingFilterPayment === "paid"
@@ -1189,7 +1225,7 @@
 
       if (q) {
         list = list.filter(function (b) {
-          return [b.name, b.email, b.phone, b.location, b.country, b.items, b.address]
+          return [b.name, b.email, b.phone, b.location, b.items, b.address]
             .some(function (v) { return String(v || "").toLowerCase().indexOf(q) !== -1; });
         });
       }
@@ -1220,22 +1256,6 @@
     function renderBookings() {
       const tableRoot = document.getElementById("bookingsTable");
       const summary = document.getElementById("bookingsSummary");
-      const countrySelect = document.getElementById("bookingsCountry");
-
-      // Remplit le filtre pays (valeurs uniques)
-      const countries = Array.from(
-        new Set(bookings.map(function (b) { return b.country; }).filter(Boolean))
-      ).sort();
-
-      const currentCountry = countrySelect.value;
-      countrySelect.innerHTML =
-        '<option value="all">All countries</option>' +
-        countries.map(function (c) {
-          return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + "</option>";
-        }).join("");
-      countrySelect.value = countries.indexOf(currentCountry) !== -1 ? currentCountry : "all";
-      bookingFilterCountry = countrySelect.value;
-
       const list = getFilteredBookings();
 
       const paidTotal = list
@@ -1272,12 +1292,14 @@
             "<td>" + escapeHtml(b.phone || "—") + "</td>" +
             "<td>" + escapeHtml(b.email || "—") + "</td>" +
             "<td>" + escapeHtml(b.location || "—") + "</td>" +
-            "<td>" + escapeHtml(b.country || "—") + "</td>" +
             "<td>" + escapeHtml(b.guests || "—") + "</td>" +
             '<td style="max-width:260px;">' + escapeHtml(String(b.items || "").replace(/\n/g, " · ")) + "</td>" +
             "<td><strong>" + money(Number(b.total) || 0) + "</strong></td>" +
             '<td><span class="' + payClass + '">' + payLabel + "</span></td>" +
-            '<td><button class="row-btn del" data-booking-del="' + escapeAttr(b.id) + '">Delete</button></td>' +
+            '<td style="white-space:nowrap;">' +
+              '<button class="row-btn edit" data-booking-edit="' + escapeAttr(b.id) + '">Edit</button>' +
+              '<button class="row-btn del" data-booking-del="' + escapeAttr(b.id) + '">Delete</button>' +
+            "</td>" +
           "</tr>"
         );
       }).join("");
@@ -1298,6 +1320,12 @@
             bookingSort.dir = 1;
           }
           renderBookings();
+        });
+      });
+
+      tableRoot.querySelectorAll("[data-booking-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openBookingForm(btn.getAttribute("data-booking-edit"));
         });
       });
 
@@ -1325,6 +1353,100 @@
           }
         });
       });
+    }
+
+    function openBookingForm(id) {
+      const booking = bookings.find(function (b) { return b.id === id; });
+      if (!booking) return;
+
+      const box = document.getElementById("bookingFormBox");
+      box.style.display = "block";
+
+      document.getElementById("bookingFormTitle").textContent = "Edit booking — " + (booking.name || "");
+      document.getElementById("bk-id").value = booking.id;
+      document.getElementById("bk-name").value = booking.name || "";
+      document.getElementById("bk-phone").value = booking.phone || "";
+      document.getElementById("bk-email").value = booking.email || "";
+      document.getElementById("bk-eventdate").value = booking.eventDate || "";
+      document.getElementById("bk-address").value = booking.address || "";
+      document.getElementById("bk-location").value = booking.location || "";
+      document.getElementById("bk-guests").value = booking.guests || "";
+      document.getElementById("bk-items").value = booking.items || "";
+      document.getElementById("bk-total").value = booking.total != null ? booking.total : "";
+      document.getElementById("bk-payment").value = booking.payment === "paid" ? "paid" : "pay_on_site";
+      document.getElementById("bk-comments").value = booking.comments || "";
+      document.getElementById("bookingFormStatus").textContent = "";
+
+      box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function saveBooking() {
+      const status = document.getElementById("bookingFormStatus");
+      const id = document.getElementById("bk-id").value;
+      const name = document.getElementById("bk-name").value.trim();
+      const total = parseFloat(document.getElementById("bk-total").value);
+
+      if (!name) {
+        status.textContent = "❌ Customer name is required";
+        status.style.color = "#e63329";
+        return;
+      }
+      if (!Number.isFinite(total) || total < 0) {
+        status.textContent = "❌ Invalid total";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const booking = {
+        id: id,
+        name: name,
+        phone: document.getElementById("bk-phone").value.trim(),
+        email: document.getElementById("bk-email").value.trim(),
+        eventDate: document.getElementById("bk-eventdate").value,
+        address: document.getElementById("bk-address").value.trim(),
+        location: document.getElementById("bk-location").value.trim(),
+        guests: document.getElementById("bk-guests").value.trim(),
+        items: document.getElementById("bk-items").value.trim(),
+        total: total,
+        payment: document.getElementById("bk-payment").value,
+        comments: document.getElementById("bk-comments").value.trim()
+      };
+
+      status.textContent = "⏳ Saving...";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        const res = await fetch(API_BOOKINGS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+          body: JSON.stringify({ action: "update", booking: booking })
+        });
+
+        if (res.status === 401) { logout(); return; }
+
+        if (!res.ok) {
+          let message = "Save failed";
+          try {
+            const data = await res.json();
+            message = data.error || message;
+          } catch (e) {}
+          throw new Error(message);
+        }
+
+        const data = await res.json();
+        bookings = bookings.map(function (b) {
+          return b.id === data.booking.id ? data.booking : b;
+        });
+
+        renderBookings();
+        openBookingForm(data.booking.id);
+
+        status.textContent = "✅ Booking updated";
+        status.style.color = "#27ae60";
+      } catch (e) {
+        status.textContent = "❌ " + (e.message || "Save failed");
+        status.style.color = "#e63329";
+      }
     }
 
     function formatDateTime(value) {
@@ -1366,7 +1488,6 @@
           "Email": b.email || "",
           "Address": b.address || "",
           "Location": b.location || "",
-          "Country": b.country || "",
           "Guests": b.guests || "",
           "Items": String(b.items || "").replace(/\n/g, " | "),
           "Total": Number(b.total) || 0,
@@ -1378,7 +1499,7 @@
       const ws = XLSX.utils.json_to_sheet(rows);
       ws["!cols"] = [
         { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 26 },
-        { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 8 }, { wch: 50 }, { wch: 10 }, { wch: 14 }, { wch: 40 }
+        { wch: 28 }, { wch: 20 }, { wch: 8 }, { wch: 50 }, { wch: 10 }, { wch: 14 }, { wch: 40 }
       ];
 
       const wb = XLSX.utils.book_new();
@@ -1453,13 +1574,13 @@
       bookingSearch = e.target.value;
       renderBookings();
     });
-    document.getElementById("bookingsCountry").addEventListener("change", function (e) {
-      bookingFilterCountry = e.target.value;
-      renderBookings();
-    });
     document.getElementById("bookingsPayment").addEventListener("change", function (e) {
       bookingFilterPayment = e.target.value;
       renderBookings();
+    });
+    document.getElementById("saveBookingBtn").addEventListener("click", saveBooking);
+    document.getElementById("cancelBookingBtn").addEventListener("click", function () {
+      document.getElementById("bookingFormBox").style.display = "none";
     });
 
     document.querySelectorAll(".tab").forEach(function (tab) {

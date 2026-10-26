@@ -1,5 +1,10 @@
 const crypto = require("crypto");
-const { getBookings, deleteBooking, ensureHistoricalBookings } = require("./bookings-store");
+const {
+  getBookings,
+  deleteBooking,
+  updateBooking,
+  ensureHistoricalBookings,
+} = require("./bookings-store");
 
 exports.handler = async (event) => {
   const allowedOrigins = [
@@ -51,15 +56,32 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ bookings: list }) };
   }
 
-  /* ✍️ POST → supprimer un booking (admin) */
+  /* ✍️ POST → supprimer / modifier un booking (admin) */
   if (event.httpMethod === "POST") {
     try {
-      const { action, id } = JSON.parse(event.body || "{}");
-      if (action !== "delete" || !id) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid action" }) };
+      const body = JSON.parse(event.body || "{}");
+      const { action, id, booking } = body;
+
+      if (action === "delete") {
+        if (!id) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing id" }) };
+        }
+        const list = await deleteBooking(id);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, count: list.length }) };
       }
-      const list = await deleteBooking(id);
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, count: list.length }) };
+
+      if (action === "update") {
+        if (!booking || !booking.id) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing booking" }) };
+        }
+        const updated = await updateBooking(booking.id, booking);
+        if (!updated) {
+          return { statusCode: 404, headers, body: JSON.stringify({ error: "Booking not found" }) };
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, booking: updated }) };
+      }
+
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Invalid action" }) };
     } catch (error) {
       return {
         statusCode: 400,
