@@ -41,7 +41,10 @@ async function recordBooking(input) {
 
   const booking = {
     id: newId(),
-    createdAt: new Date().toISOString(),
+    createdAt:
+      input.createdAt && !isNaN(Date.parse(input.createdAt))
+        ? new Date(input.createdAt).toISOString()
+        : new Date().toISOString(),
     eventDate: clean(input.date, 20),
     name: clean(input.name, 100),
     email: clean(input.email, 150),
@@ -81,6 +84,10 @@ async function updateBooking(id, patch) {
 
   const updated = {
     ...current,
+    createdAt:
+      patch.createdAt && !isNaN(Date.parse(patch.createdAt))
+        ? new Date(patch.createdAt).toISOString()
+        : current.createdAt,
     eventDate: pick(patch.eventDate, 20, current.eventDate),
     name: pick(patch.name, 100, current.name),
     email: pick(patch.email, 150, current.email),

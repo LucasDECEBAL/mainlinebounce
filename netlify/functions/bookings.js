@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const {
   getBookings,
+  recordBooking,
   deleteBooking,
   updateBooking,
   ensureHistoricalBookings,
@@ -68,6 +69,27 @@ exports.handler = async (event) => {
         }
         const list = await deleteBooking(id);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, count: list.length }) };
+      }
+
+      if (action === "create") {
+        if (!booking || !booking.name || booking.total === undefined) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: "Missing booking data" }) };
+        }
+        const created = await recordBooking({
+          date: booking.eventDate,
+          name: booking.name,
+          email: booking.email,
+          phone: booking.phone,
+          address: booking.address,
+          location: booking.location,
+          guests: booking.guests,
+          comments: booking.comments,
+          items: booking.items,
+          total: booking.total,
+          payment: booking.payment,
+          createdAt: booking.createdAt,
+        });
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, booking: created }) };
       }
 
       if (action === "update") {

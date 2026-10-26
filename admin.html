@@ -71,6 +71,7 @@
 
   input[type="password"],
   input[type="date"],
+  input[type="datetime-local"],
   input[type="text"],
   input[type="number"],
   select,
@@ -441,6 +442,7 @@
               <option value="paid">Paid online</option>
               <option value="onsite">Pay on site</option>
             </select>
+            <button class="toolbar-btn" id="newBookingBtn">➕ New booking</button>
             <button class="toolbar-btn" id="refreshBookingsBtn">↻ Refresh</button>
             <button class="toolbar-btn primary" id="exportBookingsBtn">⬇ Export Excel</button>
           </div>
@@ -452,6 +454,9 @@
         <div class="box" id="bookingFormBox" style="display:none;">
           <h3 id="bookingFormTitle">Edit booking</h3>
           <input type="hidden" id="bk-id">
+
+          <label>Booked at</label>
+          <input type="datetime-local" id="bk-created">
 
           <label>Customer name</label>
           <input type="text" id="bk-name" maxlength="100">
@@ -870,7 +875,7 @@
       document.getElementById("f-position").value = item ? item.position : 1;
       document.getElementById("faqStatus").textContent = "";
 
-      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function saveFaq() {
@@ -1033,7 +1038,7 @@
       document.getElementById("articleStatus").textContent = "";
 
       renderAddonCheckboxes(product ? product.addons : []);
-      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     async function saveArticle() {
@@ -1445,28 +1450,45 @@
     }
 
     function openBookingForm(id) {
-      const booking = bookings.find(function (b) { return b.id === id; });
-      if (!booking) return;
+      const booking = id
+        ? bookings.find(function (b) { return b.id === id; })
+        : null;
+
+      if (id && !booking) return;
 
       const box = document.getElementById("bookingFormBox");
       box.style.display = "block";
 
-      document.getElementById("bookingFormTitle").textContent = "Edit booking — " + (booking.name || "");
-      document.getElementById("bk-id").value = booking.id;
-      document.getElementById("bk-name").value = booking.name || "";
-      document.getElementById("bk-phone").value = booking.phone || "";
-      document.getElementById("bk-email").value = booking.email || "";
-      document.getElementById("bk-eventdate").value = booking.eventDate || "";
-      document.getElementById("bk-address").value = booking.address || "";
-      document.getElementById("bk-location").value = booking.location || "";
-      document.getElementById("bk-guests").value = booking.guests || "";
-      document.getElementById("bk-items").value = booking.items || "";
-      document.getElementById("bk-total").value = booking.total != null ? booking.total : "";
-      document.getElementById("bk-payment").value = booking.payment === "paid" ? "paid" : "pay_on_site";
-      document.getElementById("bk-comments").value = booking.comments || "";
+      document.getElementById("bookingFormTitle").textContent = booking
+        ? "Edit booking - " + (booking.name || "")
+        : "New booking";
+      document.getElementById("bk-id").value = booking ? booking.id : "";
+      document.getElementById("bk-created").value = booking
+        ? toDatetimeLocal(booking.createdAt)
+        : toDatetimeLocal(new Date().toISOString());
+      document.getElementById("bk-name").value = booking ? booking.name || "" : "";
+      document.getElementById("bk-phone").value = booking ? booking.phone || "" : "";
+      document.getElementById("bk-email").value = booking ? booking.email || "" : "";
+      document.getElementById("bk-eventdate").value = booking ? booking.eventDate || "" : "";
+      document.getElementById("bk-address").value = booking ? booking.address || "" : "";
+      document.getElementById("bk-location").value = booking ? booking.location || "" : "";
+      document.getElementById("bk-guests").value = booking ? booking.guests || "" : "";
+      document.getElementById("bk-items").value = booking ? booking.items || "" : "";
+      document.getElementById("bk-total").value = booking && booking.total != null ? booking.total : "";
+      document.getElementById("bk-payment").value = booking && booking.payment === "pay_on_site" ? "pay_on_site" : "paid";
+      document.getElementById("bk-comments").value = booking ? booking.comments || "" : "";
       document.getElementById("bookingFormStatus").textContent = "";
 
-      box.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function toDatetimeLocal(value) {
+      if (!value) return "";
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return "";
+      const pad = function (n) { return String(n).padStart(2, "0"); };
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+        "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
     }
 
     async function saveBooking() {
@@ -1501,6 +1523,13 @@
         comments: document.getElementById("bk-comments").value.trim()
       };
 
+      const createdValue = document.getElementById("bk-created").value;
+      if (createdValue) {
+        booking.createdAt = new Date(createdValue).toISOString();
+      }
+
+      const action = id ? "update" : "create";
+
       status.textContent = "⏳ Saving...";
       status.style.color = "var(--color-gray)";
 
@@ -1508,7 +1537,7 @@
         const res = await fetch(API_BOOKINGS, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
-          body: JSON.stringify({ action: "update", booking: booking })
+          body: JSON.stringify({ action: action, booking: booking })
         });
 
         if (res.status === 401) { logout(); return; }
@@ -1523,14 +1552,18 @@
         }
 
         const data = await res.json();
-        bookings = bookings.map(function (b) {
-          return b.id === data.booking.id ? data.booking : b;
-        });
+        if (id) {
+          bookings = bookings.map(function (b) {
+            return b.id === data.booking.id ? data.booking : b;
+          });
+        } else {
+          bookings.push(data.booking);
+        }
 
         renderBookings();
         openBookingForm(data.booking.id);
 
-        status.textContent = "✅ Booking updated";
+        status.textContent = id ? "✅ Booking updated" : "✅ Booking added";
         status.style.color = "#27ae60";
       } catch (e) {
         status.textContent = "❌ " + (e.message || "Save failed");
@@ -1663,6 +1696,9 @@
 
     document.getElementById("refreshBookingsBtn").addEventListener("click", function () {
       loadBookings(true);
+    });
+    document.getElementById("newBookingBtn").addEventListener("click", function () {
+      openBookingForm(null);
     });
     document.getElementById("exportBookingsBtn").addEventListener("click", exportBookingsExcel);
     document.getElementById("bookingsSearch").addEventListener("input", function (e) {
