@@ -549,8 +549,18 @@
           <label>Product name</label>
           <input type="text" id="a-name" maxlength="100">
 
+          <label>Page</label>
+          <select id="a-page">
+            <option value="inflatables">Inflatables</option>
+            <option value="addons">Add-ons</option>
+            <option value="silent-disco">Silent Disco</option>
+          </select>
+
           <label>Price ($)</label>
           <input type="number" id="a-price" min="0" step="1">
+          <p style="font-size:0.8rem; color:var(--color-gray); margin:4px 0 0;">
+            Leave empty for "Call for price" (e.g. Popcorn Machine).
+          </p>
 
           <label>Old price ($) — optional (strikethrough price)</label>
           <input type="number" id="a-oldprice" min="0" step="1">
@@ -613,6 +623,13 @@
       addons: "Add-ons",
       youngAdult: "Young Adult (Silent Disco)"
     };
+
+    const PAGE_LABELS = {
+      inflatables: "Inflatables",
+      addons: "Add-ons",
+      "silent-disco": "Silent Disco"
+    };
+    const PAGE_ORDER = ["inflatables", "addons", "silent-disco"];
 
     let adminKey = sessionStorage.getItem("mlb_admin_key") || "";
     let content = null;
@@ -895,10 +912,26 @@
     /* ============================================
        PRODUCTS
        ============================================ */
+    function normalizeAdminPositions(products) {
+      const out = [];
+      PAGE_ORDER.forEach(function (page) {
+        products
+          .filter(function (p) { return (p.page || "inflatables") === page; })
+          .slice()
+          .sort(function (a, b) {
+            return (a.position - b.position) ||
+              String(a.name || "").localeCompare(String(b.name || ""));
+          })
+          .forEach(function (p, i) { p.position = i + 1; out.push(p); });
+      });
+      return out;
+    }
+
     function renderArticles() {
       const root = document.getElementById("articlesTable");
       const products = (content.products || []).slice().sort(function (a, b) {
-        return (a.position - b.position) ||
+        return (PAGE_ORDER.indexOf(a.page || "inflatables") - PAGE_ORDER.indexOf(b.page || "inflatables")) ||
+          (a.position - b.position) ||
           String(a.name || "").localeCompare(String(b.name || ""));
       });
 
@@ -910,9 +943,10 @@
       let rows = products.map(function (p, i) {
         return (
           "<tr>" +
-            "<td>" + (i + 1) + "</td>" +
+            "<td>" + p.position + "</td>" +
             "<td><strong>" + escapeHtml(p.name) + "</strong></td>" +
-            "<td>$" + p.price + "</td>" +
+            "<td>" + (PAGE_LABELS[p.page] || PAGE_LABELS.inflatables) + "</td>" +
+            "<td>" + (p.price == null ? "Call for price" : "$" + p.price) + "</td>" +
             "<td>" + (p.available ? '<span class="tag">Available</span>' : '<span class="tag off">Unavailable</span>') + "</td>" +
             '<td style="white-space:nowrap;">' +
               '<button class="row-btn edit" data-edit="' + escapeAttr(p.id) + '">Edit</button>' +
@@ -924,7 +958,7 @@
 
       root.innerHTML =
         '<table class="articles-table">' +
-          "<thead><tr><th>Pos.</th><th>Name</th><th>Price</th><th>Status</th><th></th></tr></thead>" +
+          "<thead><tr><th>Pos.</th><th>Name</th><th>Page</th><th>Price</th><th>Status</th><th></th></tr></thead>" +
           "<tbody>" + rows + "</tbody>" +
         "</table>";
 
@@ -941,13 +975,8 @@
           if (!product) return;
           if (!confirm('Delete product "' + product.name + '"?')) return;
 
-          content.products = content.products
-            .filter(function (p) { return p.id !== id; })
-            .sort(function (a, b) {
-              return (a.position - b.position) ||
-                String(a.name || "").localeCompare(String(b.name || ""));
-            })
-            .map(function (p, i) { p.position = i + 1; return p; });
+          const remaining = content.products.filter(function (p) { return p.id !== id; });
+          content.products = normalizeAdminPositions(remaining);
 
           const ok = await saveContent(document.getElementById("articleStatus"), "Product deleted");
           if (ok) {
@@ -964,12 +993,20 @@
       const root = document.getElementById("a-addons");
       const chosen = Array.isArray(selected) ? selected.slice(0, 6) : [];
 
-      root.innerHTML = (content.addons || []).map(function (a) {
+      const addonProducts = (content.products || [])
+        .filter(function (a) { return (a.page || "inflatables") === "addons"; })
+        .slice()
+        .sort(function (a, b) {
+          return (a.position - b.position) ||
+            String(a.name || "").localeCompare(String(b.name || ""));
+        });
+
+      root.innerHTML = addonProducts.map(function (a) {
         const checked = chosen.indexOf(a.id) !== -1;
         return (
           '<label class="addon-check">' +
             '<input type="checkbox" value="' + escapeAttr(a.id) + '"' + (checked ? " checked" : "") + ">" +
-            "<span>" + escapeHtml(a.name) + " — $" + (a.price == null ? "—" : a.price) + "</span>" +
+            "<span>" + escapeHtml(a.name) + (a.price == null ? "" : " - $" + a.price) + "</span>" +
           "</label>"
         );
       }).join("");
@@ -1009,17 +1046,23 @@
 
       document.getElementById("articleFormTitle").textContent = product ? "Edit product" : "New product";
       document.getElementById("a-id").value = product ? product.id : "";
+      const page = product ? (product.page || "inflatables") : "inflatables";
+      document.getElementById("a-page").value = page;
       document.getElementById("a-name").value = product ? product.name : "";
-      document.getElementById("a-price").value = product ? product.price : "";
+      document.getElementById("a-price").value = product && product.price != null ? product.price : "";
       document.getElementById("a-oldprice").value = product && product.oldPrice != null ? product.oldPrice : "";
 
-      let effectivePosition = (content.products || []).length + 1;
-      if (product) {
-        const sorted = content.products.slice().sort(function (a, b) {
+      const pageProducts = (content.products || [])
+        .filter(function (p) { return (p.page || "inflatables") === page; })
+        .slice()
+        .sort(function (a, b) {
           return (a.position - b.position) ||
             String(a.name || "").localeCompare(String(b.name || ""));
         });
-        const idx = sorted.findIndex(function (p) { return p.id === product.id; });
+
+      let effectivePosition = pageProducts.length + 1;
+      if (product) {
+        const idx = pageProducts.findIndex(function (p) { return p.id === product.id; });
         effectivePosition = idx >= 0 ? idx + 1 : 1;
       }
       document.getElementById("a-position").value = effectivePosition;
@@ -1039,14 +1082,15 @@
     async function saveArticle() {
       const status = document.getElementById("articleStatus");
       const name = document.getElementById("a-name").value.trim();
-      const price = parseFloat(document.getElementById("a-price").value);
+      const priceRaw = document.getElementById("a-price").value.trim();
+      const price = priceRaw === "" ? null : parseFloat(priceRaw);
 
       if (!name) {
         status.textContent = "❌ Name is required";
         status.style.color = "#e63329";
         return;
       }
-      if (!Number.isFinite(price) || price < 0) {
+      if (price !== null && (!Number.isFinite(price) || price < 0)) {
         status.textContent = "❌ Invalid price";
         status.style.color = "#e63329";
         return;
@@ -1062,10 +1106,12 @@
       const existingId = document.getElementById("a-id").value;
       const id = existingId || slugify(name) + "-" + Date.now().toString(36);
       const existing = content.products.find(function (p) { return p.id === id; });
+      const page = document.getElementById("a-page").value;
 
       const product = {
         id: id,
         name: name,
+        page: page,
         category: existing ? existing.category : "kids",
         price: price,
         oldPrice: Number.isFinite(oldPrice) ? oldPrice : null,
@@ -1080,18 +1126,23 @@
         addons: addons
       };
 
-      // Insère à la position choisie (slot), puis renumérote 1..N
-      const others = content.products
-        .filter(function (p) { return p.id !== id; })
+      // Insère à la position choisie (slot) dans SA page, puis renumérote par page
+      const others = content.products.filter(function (p) { return p.id !== id; });
+      const samePage = others
+        .filter(function (p) { return (p.page || "inflatables") === page; })
         .sort(function (a, b) {
           return (a.position - b.position) ||
             String(a.name || "").localeCompare(String(b.name || ""));
         });
+      const otherPages = others.filter(function (p) {
+        return (p.page || "inflatables") !== page;
+      });
 
-      const target = Math.max(0, Math.min((product.position || 1) - 1, others.length));
-      others.splice(target, 0, product);
-      others.forEach(function (p, i) { p.position = i + 1; });
-      content.products = others;
+      const target = Math.max(0, Math.min((product.position || 1) - 1, samePage.length));
+      samePage.splice(target, 0, product);
+      samePage.forEach(function (p, i) { p.position = i + 1; });
+
+      content.products = normalizeAdminPositions(otherPages.concat(samePage));
 
       const ok = await saveContent(status, "Product saved");
       if (ok) {
@@ -1114,36 +1165,32 @@
       const current = select.value || "ALL";
       const names = { "ALL": "🌐 All inflatables" };
 
-      const products = (content.products || []).slice().sort(function (a, b) {
-        return String(a.name || "").localeCompare(String(b.name || ""));
-      });
-      const addons = (content.addons || []).slice().sort(function (a, b) {
-        return String(a.name || "").localeCompare(String(b.name || ""));
+      const items = (content.products || []).slice().sort(function (a, b) {
+        return (PAGE_ORDER.indexOf(a.page || "inflatables") - PAGE_ORDER.indexOf(b.page || "inflatables")) ||
+          (a.position - b.position) ||
+          String(a.name || "").localeCompare(String(b.name || ""));
       });
 
-      products.forEach(function (p) { names[p.id] = p.name; });
-      addons.forEach(function (a) { if (!names[a.id]) names[a.id] = a.name; });
+      items.forEach(function (p) { names[p.id] = p.name; });
       ITEM_NAMES = names;
 
       let html = '<option value="ALL">🌐 ALL inflatables (global block)</option>';
 
-      if (products.length) {
-        html += '<optgroup label="Inflatables & packages">' +
-          products.map(function (p) {
+      PAGE_ORDER.forEach(function (page) {
+        const group = items.filter(function (p) {
+          return (p.page || "inflatables") === page;
+        });
+
+        if (!group.length) return;
+
+        html += '<optgroup label="' + PAGE_LABELS[page] + '">' +
+          group.map(function (p) {
             return '<option value="' + escapeAttr(p.id) + '">' +
               escapeHtml(p.name) + (p.available === false ? " (unavailable)" : "") +
               "</option>";
           }).join("") +
           "</optgroup>";
-      }
-
-      if (addons.length) {
-        html += '<optgroup label="Add-ons">' +
-          addons.map(function (a) {
-            return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + "</option>";
-          }).join("") +
-          "</optgroup>";
-      }
+      });
 
       select.innerHTML = html;
       select.value = names[current] ? current : "ALL";

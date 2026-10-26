@@ -183,6 +183,98 @@ const DEFAULT_CONTENT = {
       url: "",
         addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
     },
+
+    /* ----- ADD-ONS PAGE ----- */
+    {
+      id: "misting-fan", name: "Misting Fan", page: "addons", category: "kids",
+      price: 50, oldPrice: null, badge: "",
+      shortDesc: "Cool mist for hot days — keep guests comfortable all party long.",
+      longDesc: "Cool mist for hot days — keep guests comfortable all party long.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 1, available: true, url: "", addons: [],
+    },
+    {
+      id: "generator", name: "Generator", page: "addons", category: "kids",
+      price: 100, oldPrice: null, badge: "",
+      shortDesc: "Power for inflatables, lights and sound — wherever your event is.",
+      longDesc: "Power for inflatables, lights and sound — wherever your event is.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 2, available: true, url: "", addons: [],
+    },
+    {
+      id: "tent", name: "Tent", page: "addons", category: "kids",
+      price: 75, oldPrice: null, badge: "",
+      shortDesc: "Shade and shelter for food, gifts and seating areas.",
+      longDesc: "Shade and shelter for food, gifts and seating areas.",
+      dimension: "", image: "images/canopy.png",
+      position: 3, available: true, url: "", addons: [],
+    },
+    {
+      id: "white-folding-tables", name: "White Folding Tables", page: "addons", category: "kids",
+      price: 15, oldPrice: null, badge: "",
+      shortDesc: "Perfect for food, gifts, and seating.",
+      longDesc: "Perfect for food, gifts, and seating.",
+      dimension: "", image: "images/tables.png",
+      position: 4, available: true, url: "", addons: [],
+    },
+    {
+      id: "white-folding-chairs", name: "White Folding Chairs", page: "addons", category: "kids",
+      price: 2, oldPrice: null, badge: "",
+      shortDesc: "Clean seating for parties and events.",
+      longDesc: "Clean seating for parties and events.",
+      dimension: "", image: "images/chairs.png",
+      position: 5, available: true, url: "", addons: [],
+    },
+    {
+      id: "foam-machine", name: "Foam Machine", page: "addons", category: "kids",
+      price: 299, oldPrice: null, badge: "",
+      shortDesc: "Turn any party into an epic foam party — kids and teens love it.",
+      longDesc: "Turn any party into an epic foam party — kids and teens love it.",
+      dimension: "", image: "images/foam-machine.svg",
+      position: 6, available: true, url: "", addons: [],
+    },
+    {
+      id: "popcorn-machine", name: "Popcorn Machine", page: "addons", category: "kids",
+      price: null, oldPrice: null, badge: "",
+      shortDesc: "Fresh popcorn all party long — a crowd favorite for every event.",
+      longDesc: "Fresh popcorn all party long — a crowd favorite for every event.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 7, available: true, url: "", addons: [],
+    },
+
+    /* ----- SILENT DISCO PAGE ----- */
+    {
+      id: "dance-floor", name: "Dance Floor Rental", page: "silent-disco", category: "teen",
+      price: 200, oldPrice: null, badge: "",
+      shortDesc: "20 × 20 ft dance floor — indoor or outdoor.",
+      longDesc: "20 × 20 ft dance floor — indoor or outdoor.",
+      dimension: "20 × 20 ft", image: "images/placeholder.svg",
+      position: 1, available: true, url: "", addons: [],
+    },
+    {
+      id: "silent-disco-10", name: "Silent Disco — 10 Headsets", page: "silent-disco", category: "teen",
+      price: 399, oldPrice: null, badge: "",
+      shortDesc: "Dance floor included + 10 wireless headsets.",
+      longDesc: "Dance floor included + 10 wireless headsets.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 2, available: true, url: "", addons: [],
+    },
+    {
+      id: "silent-disco-30", name: "Silent Disco — 30 Headsets", page: "silent-disco", category: "teen",
+      price: 549, oldPrice: null, badge: "",
+      shortDesc: "Dance floor included + 30 wireless headsets.",
+      longDesc: "Dance floor included + 30 wireless headsets.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 3, available: true, url: "", addons: [],
+    },
+    {
+      id: "silent-disco-50", name: "Silent Disco — 50 Headsets", page: "silent-disco", category: "teen",
+      price: 649, oldPrice: null, badge: "",
+      shortDesc: "Dance floor included + 50 wireless headsets.",
+      longDesc: "Dance floor included + 50 wireless headsets.",
+      dimension: "", image: "images/placeholder.svg",
+      position: 4, available: true, url: "", addons: [],
+    },
   ],
   faq: [
     {
@@ -245,6 +337,7 @@ const DEFAULT_CONTENT = {
 };
 
 const CATEGORIES = ["kids", "teen", "corporate"];
+const PAGES = ["inflatables", "addons", "silent-disco"];
 const BANNER_KEYS = ["home", "inflatables", "addons", "youngAdult"];
 
 /* ============================================
@@ -284,9 +377,15 @@ function cleanAddon(a) {
 }
 
 function cleanProduct(p) {
-  const price = cleanPrice(p && p.price);
-  if (price === null) throw new Error("Invalid price");
+  const page = PAGES.includes(p && p.page) ? p.page : "inflatables";
   const category = CATEGORIES.includes(p.category) ? p.category : "kids";
+
+  const priceProvided = p && p.price !== null && p.price !== undefined && p.price !== "";
+  let price = null;
+  if (priceProvided) {
+    price = cleanPrice(p.price);
+    if (price === null) throw new Error("Invalid price");
+  }
 
   let addons = Array.isArray(p.addons) ? p.addons : [];
   addons = addons
@@ -297,6 +396,7 @@ function cleanProduct(p) {
   return {
     id: cleanStr(p.id, 60) || "item-" + Date.now().toString(36),
     name: cleanStr(p.name, 100),
+    page,
     category,
     price,
     oldPrice: cleanPrice(p.oldPrice),
@@ -329,13 +429,8 @@ function cleanContent(raw) {
     banners[key] = cleanBanner(source.banners && source.banners[key]);
   });
 
-  const addons = (Array.isArray(source.addons) ? source.addons : DEFAULT_CONTENT.addons)
-    .slice(0, 30)
-    .map(cleanAddon)
-    .filter((a) => a.id && a.name);
-
   const products = (Array.isArray(source.products) ? source.products : [])
-    .slice(0, 200)
+    .slice(0, 300)
     .map(cleanProduct)
     .filter((p) => p.name);
 
@@ -344,7 +439,7 @@ function cleanContent(raw) {
     .map(cleanFaqItem)
     .filter((f) => f.question);
 
-  return { version: 1, banners, addons, products, faq };
+  return { version: 1, banners, products, faq };
 }
 
 /* Complète un contenu sauvegardé avec les valeurs par défaut manquantes
@@ -352,7 +447,14 @@ function cleanContent(raw) {
 function normalizeStored(stored) {
   const base = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
 
-  if (!stored || typeof stored !== "object") return base;
+  if (!stored || typeof stored !== "object") {
+    return {
+      version: 1,
+      banners: base.banners,
+      products: normalizeProductList(base.products),
+      faq: base.faq,
+    };
+  }
 
   const banners = {};
   BANNER_KEYS.forEach((key) => {
@@ -360,24 +462,43 @@ function normalizeStored(stored) {
       stored.banners && stored.banners[key] ? stored.banners[key] : base.banners[key];
   });
 
-  // Positions normalisées 1..N (ordre ligne par ligne, gauche -> droite)
   let products = Array.isArray(stored.products) ? stored.products : base.products;
-  products = products
-    .slice()
-    .sort(
-      (a, b) =>
-        (Number(a.position) || 0) - (Number(b.position) || 0) ||
-        String(a.name || "").localeCompare(String(b.name || ""))
-    )
-    .map((p, i) => ({ ...p, position: i + 1 }));
+
+  // S'assure que chaque page a du contenu (migration des anciennes données)
+  ["addons", "silent-disco"].forEach((page) => {
+    if (!products.some((p) => p.page === page)) {
+      products = products.concat(base.products.filter((p) => p.page === page));
+    }
+  });
 
   return {
     version: 1,
     banners,
-    addons: Array.isArray(stored.addons) && stored.addons.length ? stored.addons : base.addons,
-    products,
+    products: normalizeProductList(products),
     faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
   };
+}
+
+/* Page + positions 1..N par page (ordre ligne par ligne) */
+function normalizeProductList(products) {
+  const withPage = products.map((p) => ({
+    ...p,
+    page: PAGES.includes(p.page) ? p.page : "inflatables",
+  }));
+
+  const out = [];
+  PAGES.forEach((page) => {
+    withPage
+      .filter((p) => p.page === page)
+      .sort(
+        (a, b) =>
+          (Number(a.position) || 0) - (Number(b.position) || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""))
+      )
+      .forEach((p, i) => out.push({ ...p, position: i + 1 }));
+  });
+
+  return out;
 }
 
 /* ============================================

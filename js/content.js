@@ -177,8 +177,23 @@ const DEFAULT_CONTENT = {
       position: 3,
       available: true,
       url: "",
-      addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
+        addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
     },
+
+    /* ----- ADD-ONS PAGE ----- */
+    { id: "misting-fan", name: "Misting Fan", page: "addons", price: 50, oldPrice: null, badge: "", shortDesc: "Cool mist for hot days — keep guests comfortable all party long.", longDesc: "Cool mist for hot days — keep guests comfortable all party long.", dimension: "", image: "images/placeholder.svg", position: 1, available: true, url: "", addons: [] },
+    { id: "generator", name: "Generator", page: "addons", price: 100, oldPrice: null, badge: "", shortDesc: "Power for inflatables, lights and sound — wherever your event is.", longDesc: "Power for inflatables, lights and sound — wherever your event is.", dimension: "", image: "images/placeholder.svg", position: 2, available: true, url: "", addons: [] },
+    { id: "tent", name: "Tent", page: "addons", price: 75, oldPrice: null, badge: "", shortDesc: "Shade and shelter for food, gifts and seating areas.", longDesc: "Shade and shelter for food, gifts and seating areas.", dimension: "", image: "images/canopy.png", position: 3, available: true, url: "", addons: [] },
+    { id: "white-folding-tables", name: "White Folding Tables", page: "addons", price: 15, oldPrice: null, badge: "", shortDesc: "Perfect for food, gifts, and seating.", longDesc: "Perfect for food, gifts, and seating.", dimension: "", image: "images/tables.png", position: 4, available: true, url: "", addons: [] },
+    { id: "white-folding-chairs", name: "White Folding Chairs", page: "addons", price: 2, oldPrice: null, badge: "", shortDesc: "Clean seating for parties and events.", longDesc: "Clean seating for parties and events.", dimension: "", image: "images/chairs.png", position: 5, available: true, url: "", addons: [] },
+    { id: "foam-machine", name: "Foam Machine", page: "addons", price: 299, oldPrice: null, badge: "", shortDesc: "Turn any party into an epic foam party — kids and teens love it.", longDesc: "Turn any party into an epic foam party — kids and teens love it.", dimension: "", image: "images/foam-machine.svg", position: 6, available: true, url: "", addons: [] },
+    { id: "popcorn-machine", name: "Popcorn Machine", page: "addons", price: null, oldPrice: null, badge: "", shortDesc: "Fresh popcorn all party long — a crowd favorite for every event.", longDesc: "Fresh popcorn all party long — a crowd favorite for every event.", dimension: "", image: "images/placeholder.svg", position: 7, available: true, url: "", addons: [] },
+
+    /* ----- SILENT DISCO PAGE ----- */
+    { id: "dance-floor", name: "Dance Floor Rental", page: "silent-disco", price: 200, oldPrice: null, badge: "", shortDesc: "20 × 20 ft dance floor — indoor or outdoor.", longDesc: "20 × 20 ft dance floor — indoor or outdoor.", dimension: "20 × 20 ft", image: "images/placeholder.svg", position: 1, available: true, url: "", addons: [] },
+    { id: "silent-disco-10", name: "Silent Disco — 10 Headsets", page: "silent-disco", price: 399, oldPrice: null, badge: "", shortDesc: "Dance floor included + 10 wireless headsets.", longDesc: "Dance floor included + 10 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 2, available: true, url: "", addons: [] },
+    { id: "silent-disco-30", name: "Silent Disco — 30 Headsets", page: "silent-disco", price: 549, oldPrice: null, badge: "", shortDesc: "Dance floor included + 30 wireless headsets.", longDesc: "Dance floor included + 30 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 3, available: true, url: "", addons: [] },
+    { id: "silent-disco-50", name: "Silent Disco — 50 Headsets", page: "silent-disco", price: 649, oldPrice: null, badge: "", shortDesc: "Dance floor included + 50 wireless headsets.", longDesc: "Dance floor included + 50 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 4, available: true, url: "", addons: [] },
   ],
   faq: [
     {
@@ -232,6 +247,14 @@ const DEFAULT_CONTENT = {
   ],
 };
 
+const PAGES = ["inflatables", "addons", "silent-disco"];
+
+const PAGE_LINKS = {
+  inflatables: { label: "Inflatables", href: "inflatables.html" },
+  addons: { label: "Add-ons", href: "add-ons.html" },
+  "silent-disco": { label: "Silent Disco", href: "silent-disco.html" },
+};
+
 let cachedContent = null;
 let contentIsFallback = false;
 
@@ -274,17 +297,28 @@ async function loadSiteContent() {
   return cachedContent;
 }
 
-/* Positions 1..N : ordre ligne par ligne, de gauche à droite */
+/* Positions 1..N par page (ordre ligne par ligne, de gauche à droite) */
 function normalizeProductPositions(content) {
-  content.products = (content.products || [])
-    .slice()
-    .sort(function (a, b) {
-      return (Number(a.position) || 0) - (Number(b.position) || 0) ||
-        String(a.name || "").localeCompare(String(b.name || ""));
-    })
-    .map(function (p, i) {
-      return Object.assign({}, p, { position: i + 1 });
+  const products = (content.products || []).map(function (p) {
+    return Object.assign({}, p, {
+      page: PAGES.indexOf(p.page) !== -1 ? p.page : "inflatables",
     });
+  });
+
+  const out = [];
+  PAGES.forEach(function (page) {
+    products
+      .filter(function (p) { return p.page === page; })
+      .sort(function (a, b) {
+        return (Number(a.position) || 0) - (Number(b.position) || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""));
+      })
+      .forEach(function (p, i) {
+        out.push(Object.assign({}, p, { position: i + 1 }));
+      });
+  });
+
+  content.products = out;
 }
 
 /* ---------- Banners ---------- */
@@ -348,15 +382,24 @@ function bindAddButtons(root) {
 /* ---------- Product card ---------- */
 function productCardHTML(p) {
   const url = detailUrl(p);
-  const priceHTML = p.oldPrice
-    ? '<span class="price-old">' + money(p.oldPrice) + '</span><span class="price-new">' + money(p.price) + "</span>"
-    : money(p.price);
+  const hasPrice = p.price !== null && p.price !== undefined;
+  const priceHTML = !hasPrice
+    ? "Call for price"
+    : p.oldPrice
+      ? '<span class="price-old">' + money(p.oldPrice) + '</span><span class="price-new">' + money(p.price) + "</span>"
+      : money(p.price);
 
-  const action = p.available
-    ? '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(p.id) +
+  let action;
+
+  if (!p.available) {
+    action = '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
+  } else if (!hasPrice) {
+    action = '<a href="tel:2674053125" class="btn btn-pink btn-sm">📞 Call for price</a>';
+  } else {
+    action = '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(p.id) +
       '" data-name="' + esc(p.name) + '" data-price="' + esc(p.price) +
-      '" data-image="' + esc(p.image) + '">Add to cart</button>'
-    : '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
+      '" data-image="' + esc(p.image) + '">Add to cart</button>';
+  }
 
   return (
     '<article class="product-card' + (p.available ? "" : " is-unavailable") + '">' +
@@ -371,12 +414,14 @@ function productCardHTML(p) {
   );
 }
 
-/* ---------- Catalog (Inflatables page) ---------- */
+/* ---------- Catalog (per page) ---------- */
 function renderCatalog(root, content) {
+  const page = root.getAttribute("data-page") || "inflatables";
   const items = (content.products || [])
+    .filter(function (p) { return (p.page || "inflatables") === page; })
     .slice()
     .sort(function (a, b) {
-      return (a.position - b.position) ||
+      return (Number(a.position) || 0) - (Number(b.position) || 0) ||
         String(a.name || "").localeCompare(String(b.name || ""));
     });
 
@@ -390,7 +435,11 @@ function renderCatalog(root, content) {
 /* ---------- Product detail page ---------- */
 function renderProductPage(root, content, product) {
   const addonList = (product.addons || [])
-    .map((id) => content.addons.find((a) => a.id === id))
+    .map(function (id) {
+      return (content.products || []).find(function (p) {
+        return p.id === id && p.page === "addons";
+      });
+    })
     .filter(Boolean);
 
   const addonsHTML = addonList.length
@@ -408,7 +457,7 @@ function renderProductPage(root, content, product) {
                 '<article class="equipment-card">' +
                   '<div class="product-image"><img src="' + esc(a.image) + '" alt="' + esc(a.name) + '" loading="lazy" /></div>' +
                   "<h3>" + esc(a.name) + "</h3>" +
-                  '<p class="desc">' + esc(a.desc) + "</p>" +
+                  '<p class="desc">' + esc(a.shortDesc) + "</p>" +
                   '<span class="price-tag">' + (a.price == null ? "Call for price" : money(a.price)) + "</span>" +
                   action +
                 "</article>"
@@ -419,13 +468,17 @@ function renderProductPage(root, content, product) {
       "</section>"
     : "";
 
-  const actions = product.available
-    ? '<button class="btn btn-pink" id="detail-add"' +
-      ' data-add-to-cart data-id="' + esc(product.id) +
-      '" data-name="' + esc(product.name) + '" data-price="' + esc(product.price) +
-      '" data-image="' + esc(product.image) + '">Add to cart</button>' +
-      '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>'
-    : '<a href="tel:2674053125" class="btn btn-pink">📞 Currently unavailable — call us</a>';
+  const hasPrice = product.price !== null && product.price !== undefined;
+
+  const actions = !product.available
+    ? '<a href="tel:2674053125" class="btn btn-pink">📞 Currently unavailable - call us</a>'
+    : !hasPrice
+      ? '<a href="tel:2674053125" class="btn btn-pink">📞 Call for price</a>'
+      : '<button class="btn btn-pink" id="detail-add"' +
+        ' data-add-to-cart data-id="' + esc(product.id) +
+        '" data-name="' + esc(product.name) + '" data-price="' + esc(product.price) +
+        '" data-image="' + esc(product.image) + '">Add to cart</button>' +
+        '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
 
   root.innerHTML =
     '<section class="product-detail">' +
@@ -439,15 +492,17 @@ function renderProductPage(root, content, product) {
             '<p class="detail-desc">' + esc(product.shortDesc) + "</p>" +
             (product.longDesc ? '<p class="detail-long">' + esc(product.longDesc) + "</p>" : "") +
             '<span class="price-tag">' +
-              (product.oldPrice
-                ? '<span class="price-old">' + money(product.oldPrice) + '</span><span class="price-new">' + money(product.price) + "</span>"
-                : money(product.price)) +
+              (!hasPrice
+                ? "Call for price"
+                : product.oldPrice
+                  ? '<span class="price-old">' + money(product.oldPrice) + '</span><span class="price-new">' + money(product.price) + "</span>"
+                  : money(product.price)) +
             "</span>" +
             (product.dimension
               ? '<div class="size-info"><h3>Dimensions</h3><p>' + esc(product.dimension) + "</p></div>"
               : "") +
             '<div class="detail-buttons">' + actions + "</div>" +
-            '<a href="inflatables.html" class="btn btn-outline btn-sm">← Back to Inflatables</a>' +
+            '<a href="' + (PAGE_LINKS[product.page] || PAGE_LINKS.inflatables).href + '" class="btn btn-outline btn-sm">← Back to ' + (PAGE_LINKS[product.page] || PAGE_LINKS.inflatables).label + "</a>" +
           "</div>" +
         "</div>" +
       "</div>" +
