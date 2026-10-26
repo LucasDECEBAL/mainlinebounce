@@ -232,13 +232,6 @@ const DEFAULT_CONTENT = {
   ],
 };
 
-const CATEGORY_LABELS = {
-  kids: "Kids Party",
-  teen: "Teen & Young Adult",
-  corporate: "Corporate & Large Events",
-};
-const CATEGORY_ORDER = ["kids", "teen", "corporate"];
-
 let cachedContent = null;
 let contentIsFallback = false;
 
@@ -365,22 +358,17 @@ function productCardHTML(p) {
 
 /* ---------- Catalog (Inflatables page) ---------- */
 function renderCatalog(root, content) {
-  const html = CATEGORY_ORDER.map((cat) => {
-    const items = content.products
-      .filter((p) => p.category === cat)
-      .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name));
+  const items = (content.products || [])
+    .slice()
+    .sort(function (a, b) {
+      return (a.position - b.position) ||
+        String(a.name || "").localeCompare(String(b.name || ""));
+    });
 
-    if (!items.length) return "";
+  root.innerHTML = items.length
+    ? '<div class="products-grid">' + items.map(productCardHTML).join("") + "</div>"
+    : '<p class="catalog-empty">No products available right now.</p>';
 
-    return (
-      '<section class="catalog-section" id="' + cat + '">' +
-        '<h2 class="catalog-title">' + CATEGORY_LABELS[cat] + "</h2>" +
-        '<div class="products-grid">' + items.map(productCardHTML).join("") + "</div>" +
-      "</section>"
-    );
-  }).join("");
-
-  root.innerHTML = html || '<p class="catalog-empty">No products available right now.</p>';
   bindAddButtons(root);
 }
 

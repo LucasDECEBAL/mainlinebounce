@@ -549,13 +549,6 @@
           <label>Product name</label>
           <input type="text" id="a-name" maxlength="100">
 
-          <label>Category (tile)</label>
-          <select id="a-category">
-            <option value="kids">Kids Party</option>
-            <option value="teen">Teen &amp; Young Adult</option>
-            <option value="corporate">Corporate &amp; Large Events</option>
-          </select>
-
           <label>Price ($)</label>
           <input type="number" id="a-price" min="0" step="1">
 
@@ -616,12 +609,6 @@
       inflatables: "Inflatables",
       addons: "Add-ons",
       youngAdult: "Young Adult (Silent Disco)"
-    };
-
-    const CATEGORY_LABELS = {
-      kids: "Kids",
-      teen: "Teen",
-      corporate: "Corporate"
     };
 
     let adminKey = sessionStorage.getItem("mlb_admin_key") || "";
@@ -908,7 +895,8 @@
     function renderArticles() {
       const root = document.getElementById("articlesTable");
       const products = (content.products || []).slice().sort(function (a, b) {
-        return a.category.localeCompare(b.category) || a.position - b.position;
+        return (a.position - b.position) ||
+          String(a.name || "").localeCompare(String(b.name || ""));
       });
 
       if (!products.length) {
@@ -921,7 +909,6 @@
           "<tr>" +
             "<td>" + p.position + "</td>" +
             "<td><strong>" + escapeHtml(p.name) + "</strong></td>" +
-            "<td>" + (CATEGORY_LABELS[p.category] || p.category) + "</td>" +
             "<td>$" + p.price + "</td>" +
             "<td>" + (p.available ? '<span class="tag">Available</span>' : '<span class="tag off">Unavailable</span>') + "</td>" +
             '<td style="white-space:nowrap;">' +
@@ -934,7 +921,7 @@
 
       root.innerHTML =
         '<table class="articles-table">' +
-          "<thead><tr><th>Pos.</th><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th></th></tr></thead>" +
+          "<thead><tr><th>Pos.</th><th>Name</th><th>Price</th><th>Status</th><th></th></tr></thead>" +
           "<tbody>" + rows + "</tbody>" +
         "</table>";
 
@@ -1013,7 +1000,6 @@
       document.getElementById("articleFormTitle").textContent = product ? "Edit product" : "New product";
       document.getElementById("a-id").value = product ? product.id : "";
       document.getElementById("a-name").value = product ? product.name : "";
-      document.getElementById("a-category").value = product ? product.category : "kids";
       document.getElementById("a-price").value = product ? product.price : "";
       document.getElementById("a-oldprice").value = product && product.oldPrice != null ? product.oldPrice : "";
       document.getElementById("a-position").value = product ? product.position : 1;
@@ -1055,11 +1041,12 @@
 
       const existingId = document.getElementById("a-id").value;
       const id = existingId || slugify(name) + "-" + Date.now().toString(36);
+      const existing = content.products.find(function (p) { return p.id === id; });
 
       const product = {
         id: id,
         name: name,
-        category: document.getElementById("a-category").value,
+        category: existing ? existing.category : "kids",
         price: price,
         oldPrice: Number.isFinite(oldPrice) ? oldPrice : null,
         badge: document.getElementById("a-badge").value.trim(),
