@@ -4,7 +4,7 @@
   "description": "Main Line Bounce - Inflatable rentals",
   "private": true,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.13",

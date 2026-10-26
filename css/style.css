@@ -163,6 +163,7 @@ ul   { list-style: none; }
   color: var(--color-dark);
   position: relative;
   padding-bottom: 3px;
+  white-space: nowrap;
   transition: color 0.2s;
 }
 
@@ -337,15 +338,6 @@ ul   { list-style: none; }
   font-size: 1.2rem;
 }
 
-/* Image héro */
-.hero-image img {
-  width: 100%;
-  height: 400px;
-  object-fit: cover;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-}
-
 /* ============================================
    ENTÊTE DE PAGE (titre + sous-titre)
    ============================================ */
@@ -363,6 +355,55 @@ ul   { list-style: none; }
   font-size: 1rem;
   color: var(--color-gray);
   max-width: 600px;
+}
+
+.page-head--split .container {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 44px;
+  align-items: center;
+}
+
+.page-head-media img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  object-position: 38% 32%;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.page-head--photo {
+  padding-bottom: 36px;
+}
+
+.page-head--photo .container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 48px;
+  align-items: end;
+}
+
+.page-head--photo .vibe-kicker {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 2px;
+}
+
+.page-head--photo h1 {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  font-size: 2.6rem;
+}
+
+.page-head--photo p {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: end;
+  margin: 0;
+  max-width: 520px;
+  padding-bottom: 4px;
 }
 
 /* ============================================
@@ -413,6 +454,18 @@ ul   { list-style: none; }
   height: 100%;
   object-fit: contain;
   padding: 12px;
+}
+
+.product-image img[src$="photo-booths.webp"] {
+  object-fit: cover;
+  padding: 0;
+}
+
+.product-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
 }
 
 .product-card h3 {
@@ -958,6 +1011,18 @@ ul   { list-style: none; }
 /* ============================================
    RESPONSIVE — TABLETTE (max 900px)
    ============================================ */
+@media (max-width: 1200px) {
+  .phone-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .main-nav ul {
+    gap: 20px;
+  }
+}
+
 @media (max-width: 900px) {
 
   /* Header */
@@ -1017,10 +1082,6 @@ ul   { list-style: none; }
     font-size: 2.1rem;
   }
 
-  .hero-image img {
-    height: 300px;
-  }
-
   /* Grilles */
   .products-grid,
   .equipment-grid {
@@ -1056,6 +1117,19 @@ ul   { list-style: none; }
     height: 56px;
   }
 
+  .header-inner {
+    gap: 10px;
+  }
+
+  .header-actions {
+    gap: 10px;
+  }
+
+  .header-actions .btn {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+  }
+
   /* Cache le bouton téléphone sur mobile */
   .phone-btn {
     display: none;
@@ -1067,10 +1141,6 @@ ul   { list-style: none; }
 
   .hero h1 {
     font-size: 1.8rem;
-  }
-
-  .hero-image img {
-    height: 240px;
   }
 
   .hero-buttons,
@@ -1455,6 +1525,13 @@ ul   { list-style: none; }
   color: var(--color-gray);
 }
 
+.product-long {
+  display: none;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-gray);
+}
+
 /* ============================================
    CATALOGUE DYNAMIQUE (CMS)
    ============================================ */
@@ -1473,6 +1550,58 @@ ul   { list-style: none; }
   text-align: center;
   color: var(--color-gray);
   padding: 30px 0;
+}
+
+/* Photo Booths — large featured product card */
+#catalog-root[data-page="photo-booths"] .products-grid {
+  grid-template-columns: 1fr;
+}
+
+#catalog-root[data-page="photo-booths"] .product-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+#catalog-root[data-page="photo-booths"] .product-image {
+  height: 100%;
+  min-height: 600px;
+  border-radius: 0;
+  background: #241a1c;
+}
+
+#catalog-root[data-page="photo-booths"] .product-image img {
+  object-position: 50% 30%;
+}
+
+#catalog-root[data-page="photo-booths"] .product-card-body {
+  justify-content: center;
+  gap: 18px;
+  padding: 56px 52px;
+}
+
+#catalog-root[data-page="photo-booths"] .product-card h3 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  min-height: 0;
+}
+
+#catalog-root[data-page="photo-booths"] .product-long {
+  display: block;
+  max-width: 42ch;
+}
+
+#catalog-root[data-page="photo-booths"] .price-tag {
+  margin-top: 4px;
+  min-height: 52px;
+  font-size: 1.15rem;
+}
+
+#catalog-root[data-page="photo-booths"] .product-card .btn {
+  min-height: 46px;
 }
 
 .product-card.is-unavailable .product-image img {
@@ -1494,4 +1623,352 @@ ul   { list-style: none; }
 
 .addons-upsell {
   padding-top: 0;
+}
+
+/* ============================================
+   CHOOSE YOUR VIBE — tuiles du hero
+   ============================================ */
+.hero-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hero-vibe-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vibe-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-pink);
+}
+
+.hero-vibe-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--color-dark);
+}
+
+.hero-tile-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.vibe-tile {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 168px;
+  padding: 20px 24px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.vibe-tile:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card);
+}
+
+.vibe-tile:focus-visible {
+  outline: 3px solid var(--color-dark);
+  outline-offset: 3px;
+}
+
+.vibe-tile--inflatables {
+  background: radial-gradient(120% 140% at 88% 0%, #ffd9e8 0%, #ffc0d9 55%, #ff9cc2 100%);
+  color: var(--color-dark);
+}
+
+.vibe-tile--inflatables::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(255, 213, 230, 0.98) 0%, rgba(255, 213, 230, 0.9) 30%, rgba(255, 213, 230, 0) 68%);
+}
+
+.vibe-photo {
+  position: absolute;
+  right: -1%;
+  bottom: -8%;
+  height: 112%;
+  width: auto;
+  z-index: -1;
+  mix-blend-mode: multiply;
+  filter: drop-shadow(0 20px 24px rgba(180, 20, 90, 0.22));
+  transition: transform 0.45s ease;
+}
+
+.vibe-photo--inflatables {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  width: 54%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 38%;
+  mix-blend-mode: normal;
+  filter: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 18%);
+}
+
+.vibe-tile--inflatables:hover .vibe-photo--inflatables {
+  transform: scale(1.04);
+}
+
+.vibe-tile--disco {
+  background: radial-gradient(110% 130% at 12% 0%, #6b3ff7 0%, #3d1a8f 55%, #1b0b4d 100%);
+  color: var(--color-white);
+}
+
+.vibe-tile--disco::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(27, 11, 77, 0.94) 0%, rgba(61, 26, 143, 0.62) 30%, rgba(61, 26, 143, 0) 66%);
+}
+
+.vibe-photo--disco {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  width: 54%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 38% 30%;
+  mix-blend-mode: normal;
+  filter: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 30%);
+}
+
+.vibe-tile--disco:hover .vibe-photo--disco {
+  transform: scale(1.04);
+}
+
+.vibe-tile--photobooths {
+  background: radial-gradient(120% 140% at 88% 0%, #fdf0d2 0%, #f2dcae 55%, #dfc083 100%);
+  color: var(--color-dark);
+}
+
+.vibe-tile--photobooths::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(253, 240, 210, 0.96) 0%, rgba(242, 220, 174, 0.55) 28%, rgba(242, 220, 174, 0) 60%);
+}
+
+.vibe-photo--photobooths {
+  top: 0;
+  right: 0;
+  bottom: auto;
+  width: 54%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 22%;
+  mix-blend-mode: normal;
+  filter: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 20%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 20%);
+}
+
+.vibe-tile--photobooths:hover .vibe-photo--photobooths {
+  transform: scale(1.04);
+}
+
+.hero-tile-grid:has(.vibe-tile:nth-child(3)) .vibe-tile {
+  min-height: 116px;
+  padding: 16px 22px;
+}
+
+.hero-tile-grid:has(.vibe-tile:nth-child(3)) .vibe-sub {
+  display: none;
+}
+
+.hero-tile-grid:has(.vibe-tile:nth-child(3)) .vibe-cta {
+  padding: 6px 13px;
+  font-size: 0.74rem;
+}
+
+.vibe-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: 64%;
+}
+
+.vibe-label {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.vibe-sub {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  opacity: 0.82;
+  margin-bottom: 9px;
+}
+
+.vibe-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 15px;
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  color: var(--color-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.vibe-cta span {
+  transition: transform 0.2s ease;
+}
+
+.vibe-tile:hover .vibe-cta {
+  background: var(--color-pink);
+  color: var(--color-white);
+}
+
+.vibe-tile:hover .vibe-cta span {
+  transform: translateX(3px);
+}
+
+@media (max-width: 900px) {
+  .hero-vibe-title {
+    font-size: 1.4rem;
+  }
+
+  .vibe-tile {
+    min-height: 176px;
+  }
+
+  .page-head--split .container {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .page-head-media img {
+    height: 260px;
+  }
+
+  .page-head--photo .container {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .page-head--photo .vibe-kicker,
+  .page-head--photo h1,
+  .page-head--photo p {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .page-head--photo h1 {
+    font-size: 2.2rem;
+  }
+
+  .page-head--photo p {
+    max-width: 640px;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-card {
+    grid-template-columns: 1fr;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-image {
+    min-height: 0;
+    height: 380px;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-card-body {
+    padding: 32px 30px;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero-vibe-title {
+    font-size: 1.3rem;
+  }
+
+  .vibe-tile {
+    min-height: 158px;
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+  }
+
+  .vibe-label {
+    font-size: 1.25rem;
+  }
+
+  .vibe-sub {
+    font-size: 0.8rem;
+  }
+
+  .vibe-photo {
+    right: 0;
+    bottom: -5%;
+    height: 104%;
+  }
+
+  .vibe-photo--inflatables,
+  .vibe-photo--disco {
+    bottom: auto;
+    width: 58%;
+    height: 100%;
+  }
+
+  .vibe-photo--photobooths {
+    bottom: auto;
+    width: 58%;
+    height: 100%;
+  }
+
+  .page-head-media img {
+    height: 210px;
+  }
+
+  .page-head--photo h1 {
+    font-size: 1.7rem;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-image {
+    height: 300px;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-card-body {
+    padding: 24px 22px;
+  }
+
+  #catalog-root[data-page="photo-booths"] .product-card h3 {
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-tile,
+  .vibe-photo,
+  .vibe-photo--inflatables,
+  .vibe-photo--disco,
+  .vibe-cta,
+  .vibe-cta span {
+    transition: none;
+  }
 }

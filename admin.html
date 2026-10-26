@@ -544,6 +544,7 @@
               <option value="inflatables">Inflatables</option>
               <option value="addons">Add-ons</option>
               <option value="silent-disco">Silent Disco</option>
+              <option value="photo-booths">Photo Booths</option>
             </select>
             <span id="articleCount" style="font-weight:700; color:var(--color-gray); font-size:0.88rem; align-self:center;"></span>
           </div>
@@ -563,6 +564,7 @@
             <option value="inflatables">Inflatables</option>
             <option value="addons">Add-ons</option>
             <option value="silent-disco">Silent Disco</option>
+            <option value="photo-booths">Photo Booths</option>
           </select>
 
           <label>Price ($)</label>
@@ -636,9 +638,10 @@
     const PAGE_LABELS = {
       inflatables: "Inflatables",
       addons: "Add-ons",
-      "silent-disco": "Silent Disco"
+      "silent-disco": "Silent Disco",
+      "photo-booths": "Photo Booths"
     };
-    const PAGE_ORDER = ["inflatables", "addons", "silent-disco"];
+    const PAGE_ORDER = ["inflatables", "addons", "silent-disco", "photo-booths"];
 
     let adminKey = sessionStorage.getItem("mlb_admin_key") || "";
     let content = null;

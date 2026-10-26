@@ -194,6 +194,9 @@ const DEFAULT_CONTENT = {
     { id: "silent-disco-10", name: "Silent Disco — 10 Headsets", page: "silent-disco", price: 399, oldPrice: null, badge: "", shortDesc: "Dance floor included + 10 wireless headsets.", longDesc: "Dance floor included + 10 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 2, available: true, url: "", addons: [] },
     { id: "silent-disco-30", name: "Silent Disco — 30 Headsets", page: "silent-disco", price: 549, oldPrice: null, badge: "", shortDesc: "Dance floor included + 30 wireless headsets.", longDesc: "Dance floor included + 30 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 3, available: true, url: "", addons: [] },
     { id: "silent-disco-50", name: "Silent Disco — 50 Headsets", page: "silent-disco", price: 649, oldPrice: null, badge: "", shortDesc: "Dance floor included + 50 wireless headsets.", longDesc: "Dance floor included + 50 wireless headsets.", dimension: "", image: "images/placeholder.svg", position: 4, available: true, url: "", addons: [] },
+
+    /* ----- PHOTO BOOTHS PAGE ----- */
+    { id: "photo-booth-rental", name: "Photo Booth Rental", page: "photo-booths", price: null, oldPrice: null, badge: "", shortDesc: "Photo booth with unlimited prints, fun props and a friendly attendant.", longDesc: "Make your event unforgettable with our photo booth rental. Includes unlimited prints, a wide selection of props and a friendly attendant. Perfect for birthdays, weddings, corporate events and more. Call us for a custom quote.", dimension: "", image: "images/photo-booths.webp", position: 1, available: true, url: "", addons: [] },
   ],
   faq: [
     {
@@ -247,12 +250,13 @@ const DEFAULT_CONTENT = {
   ],
 };
 
-const PAGES = ["inflatables", "addons", "silent-disco"];
+const PAGES = ["inflatables", "addons", "silent-disco", "photo-booths"];
 
 const PAGE_LINKS = {
   inflatables: { label: "Inflatables", href: "inflatables.html" },
   addons: { label: "Add-ons", href: "add-ons.html" },
   "silent-disco": { label: "Silent Disco", href: "silent-disco.html" },
+  "photo-booths": { label: "Photo Booths", href: "photo-booths.html" },
 };
 
 let cachedContent = null;
@@ -426,12 +430,15 @@ function productCardHTML(p) {
   return (
     '<article class="product-card' + (p.available ? "" : " is-unavailable") + '">' +
       '<div class="product-image"><img src="' + esc(safeImage(p.image)) + '" alt="' + esc(p.name) + '" loading="lazy" /></div>' +
-      "<h3>" + esc(p.name) + "</h3>" +
-      (p.badge ? '<span class="promo-badge">' + esc(p.badge) + "</span>" : "") +
-      (p.available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>') +
-      '<span class="price-tag">' + priceHTML + "</span>" +
-      '<a href="' + esc(url) + '" class="btn btn-pink btn-sm">View Details</a>' +
-      action +
+      '<div class="product-card-body">' +
+        "<h3>" + esc(p.name) + "</h3>" +
+        (p.page === "photo-booths" && p.longDesc ? '<p class="product-long">' + esc(p.longDesc) + "</p>" : "") +
+        (p.badge ? '<span class="promo-badge">' + esc(p.badge) + "</span>" : "") +
+        (p.available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>') +
+        '<span class="price-tag">' + priceHTML + "</span>" +
+        '<a href="' + esc(url) + '" class="btn btn-pink btn-sm">View Details</a>' +
+        action +
+      "</div>" +
     "</article>"
   );
 }

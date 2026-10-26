@@ -288,6 +288,16 @@ const DEFAULT_CONTENT = {
       dimension: "", image: "images/placeholder.svg",
       position: 4, available: true, url: "", addons: [],
     },
+
+    /* ----- PHOTO BOOTHS PAGE ----- */
+    {
+      id: "photo-booth-rental", name: "Photo Booth Rental", page: "photo-booths", category: "teen",
+      price: null, oldPrice: null, badge: "",
+      shortDesc: "Photo booth with unlimited prints, fun props and a friendly attendant.",
+      longDesc: "Make your event unforgettable with our photo booth rental. Includes unlimited prints, a wide selection of props and a friendly attendant. Perfect for birthdays, weddings, corporate events and more. Call us for a custom quote.",
+      dimension: "", image: "images/photo-booths.webp",
+      position: 1, available: true, url: "", addons: [],
+    },
   ],
   faq: [
     {
@@ -350,7 +360,7 @@ const DEFAULT_CONTENT = {
 };
 
 const CATEGORIES = ["kids", "teen", "corporate"];
-const PAGES = ["inflatables", "addons", "silent-disco"];
+const PAGES = ["inflatables", "addons", "silent-disco", "photo-booths"];
 const BANNER_KEYS = ["home", "inflatables", "addons", "youngAdult"];
 
 /* ============================================
@@ -511,7 +521,7 @@ function normalizeStored(stored) {
     }));
 
   // S'assure que chaque page a du contenu (migration des anciennes données)
-  ["addons", "silent-disco"].forEach((page) => {
+  ["addons", "silent-disco", "photo-booths"].forEach((page) => {
     if (!products.some((p) => p.page === page)) {
       products = products.concat(base.products.filter((p) => p.page === page));
     }

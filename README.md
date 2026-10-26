@@ -155,7 +155,7 @@ mainlinebounce/
 
 ## Getting started
 
-Requires **Node 20 or newer**.
+Requires **Node 22 or newer**.
 
 ```bash
 git clone https://github.com/KrustylaD/mainlinebounce.git
@@ -203,7 +203,7 @@ The Stripe **publishable** key is set in `js/checkout.js`; it is public by desig
 The repository is built for Netlify:
 
 1. Connect the GitHub repository to Netlify. `netlify.toml` already sets the publish
-   directory (`.`), the functions directory and Node 18.
+   directory (`.`), the functions directory and Node 22.
 2. Add the environment variables listed above in **Site settings → Environment variables**.
 3. Point the Stripe webhook to
    `https://mainlinebounce.com/.netlify/functions/stripe-webhook`.
@@ -254,8 +254,10 @@ The site handles payments and customer data, so the code follows a few rules:
 - **Rate limiting.** Checkout, notifications and admin login are throttled per IP.
 - **Hardened headers.** `netlify.toml` sets CSP, HSTS, `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, Referrer-Policy and Permissions-Policy;
-  `/admin.html` is marked `noindex`.
-- **Dependencies.** Node 20, `npm audit` clean, SheetJS served from the repository
+  `/admin` and `/admin.html` are marked `noindex` and `no-store`.
+- **Static publishing.** Server sources (`/netlify/*`), package metadata and the
+  trailer project are blocked with forced 404 responses.
+- **Dependencies.** Node 22, `npm audit` clean, SheetJS served from the repository
   instead of a CDN, and `node_modules/` is no longer committed.
 
 Residual considerations: the CSP still allows `'unsafe-inline'` for scripts and styles
