@@ -21,14 +21,26 @@ async function loadCatalog() {
     stored && Array.isArray(stored.products) && stored.products.length
       ? stored.products
       : DEFAULT_CONTENT.products;
+  const packages =
+    stored && Array.isArray(stored.packages)
+      ? stored.packages
+      : DEFAULT_CONTENT.packages || [];
 
-  const map = new Map();
+  const productMap = new Map();
   products.forEach((product) => {
     if (product && typeof product.id === "string") {
-      map.set(product.id, product);
+      productMap.set(product.id, product);
     }
   });
-  return map;
+
+  const packageMap = new Map();
+  packages.forEach((pkg) => {
+    if (pkg && typeof pkg.id === "string") {
+      packageMap.set(pkg.id, pkg);
+    }
+  });
+
+  return { products: productMap, packages: packageMap };
 }
 
 function normalizeCart(rawCart, catalog) {
@@ -39,6 +51,8 @@ function normalizeCart(rawCart, catalog) {
     throw new HttpError(400, "Too many items in the cart");
   }
 
+  const products = catalog.products || catalog;
+  const packages = catalog.packages || new Map();
   const merged = new Map();
 
   rawCart.forEach((item) => {
@@ -47,7 +61,47 @@ function normalizeCart(rawCart, catalog) {
     }
 
     const id = line(item.id, 60);
-    const product = catalog.get(id);
+    const pkg = packages.get(id);
+
+    if (pkg) {
+      if (pkg.type !== "bundle") {
+        throw new HttpError(400, "Choose an option in this package");
+      }
+      if (pkg.available === false) {
+        throw new HttpError(409, "One of the selected items is currently unavailable");
+      }
+
+      const price = Number(pkg.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        throw new HttpError(409, "One of the selected items must be booked by phone");
+      }
+
+      const bookingIds = (pkg.items || [])
+        .map((entry) => line(entry.productId, 60))
+        .filter(Boolean);
+      bookingIds.forEach((productId) => {
+        const included = products.get(productId);
+        if (!included) {
+          throw new HttpError(409, "One of the items in this package is no longer available");
+        }
+        if (included.available === false) {
+          throw new HttpError(409, "One of the items in this package is currently unavailable");
+        }
+      });
+
+      const rawQty = item.qty !== undefined ? item.qty : item.quantity;
+      const quantity = Math.min(MAX_QTY, Math.max(1, parseInt(rawQty, 10) || 1));
+      const previous = merged.get(id);
+      merged.set(id, {
+        product: pkg,
+        price,
+        quantity: Math.min(MAX_QTY, (previous ? previous.quantity : 0) + quantity),
+        bookingIds,
+      });
+      return;
+    }
+
+    const product = products.get(id);
     if (!product) {
       throw new HttpError(400, "Your cart contains an item that is no longer available");
     }
@@ -67,6 +121,7 @@ function normalizeCart(rawCart, catalog) {
       product,
       price,
       quantity: Math.min(MAX_QTY, (previous ? previous.quantity : 0) + quantity),
+      bookingIds: [product.id],
     });
   });
 

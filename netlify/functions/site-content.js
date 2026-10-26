@@ -299,6 +299,29 @@ const DEFAULT_CONTENT = {
       position: 1, available: true, url: "", addons: [],
     },
   ],
+  packages: [
+    {
+      id: "silent-disco-package",
+      name: "Silent Disco",
+      page: "silent-disco",
+      type: "choice",
+      price: null,
+      oldPrice: null,
+      badge: "",
+      shortDesc: "Dance floor included. Choose 10, 30 or 50 wireless headsets.",
+      longDesc:
+        "Perfect for teen parties, birthdays and corporate events, indoors or outdoors. Add a dance floor and up to 50 wireless headsets.",
+      image: "images/silent-disco.png",
+      position: 2,
+      available: true,
+      hideItems: true,
+      items: [
+        { productId: "silent-disco-10", quantity: 1 },
+        { productId: "silent-disco-30", quantity: 1 },
+        { productId: "silent-disco-50", quantity: 1 },
+      ],
+    },
+  ],
   faq: [
     {
       id: "booking-advance",
@@ -452,6 +475,83 @@ function cleanFaqItem(f) {
   };
 }
 
+function cleanPackage(input, productIds) {
+  const p = input && typeof input === "object" ? input : {};
+  const page = PAGES.includes(p.page) ? p.page : "inflatables";
+  const type = p.type === "bundle" ? "bundle" : "choice";
+
+  let price = null;
+  if (type === "bundle") {
+    const priceProvided = p.price !== null && p.price !== undefined && p.price !== "";
+    if (priceProvided) {
+      price = cleanPrice(p.price);
+      if (price === null) throw new Error("Invalid price");
+    }
+  }
+
+  const seenItems = new Set();
+  const items = (Array.isArray(p.items) ? p.items : [])
+    .slice(0, 30)
+    .map((item) => {
+      const productId = cleanId(item && item.productId);
+      if (!productId || seenItems.has(productId)) return null;
+      if (productIds && !productIds.has(productId)) return null;
+      seenItems.add(productId);
+      return {
+        productId,
+        quantity:
+          type === "choice"
+            ? 1
+            : Math.min(100, Math.max(1, parseInt(item && item.quantity, 10) || 1)),
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    id: cleanId(p.id) || "pkg-" + crypto.randomBytes(4).toString("hex"),
+    name: cleanStr(p.name, 100),
+    page,
+    type,
+    price: type === "bundle" ? price : null,
+    oldPrice: type === "bundle" ? cleanPrice(p.oldPrice) : null,
+    badge: cleanStr(p.badge, 30),
+    shortDesc: cleanStr(p.shortDesc, 300),
+    longDesc: cleanStr(p.longDesc, 3000),
+    image: safeImage(p.image) || "images/placeholder.svg",
+    position: Math.min(99, Math.max(1, parseInt(p.position, 10) || 1)),
+    available: p.available !== false,
+    hideItems: p.hideItems !== false,
+    items,
+  };
+}
+
+function sanitizePackages(packages, productIds) {
+  const seenIds = new Set();
+  return (Array.isArray(packages) ? packages : [])
+    .slice(0, 100)
+    .map((pkg) => {
+      try {
+        return cleanPackage(pkg, productIds);
+      } catch (error) {
+        return null;
+      }
+    })
+    .filter((pkg) => pkg && pkg.name && pkg.items.length)
+    .map((pkg) => {
+      if (seenIds.has(pkg.id)) {
+        let candidate = pkg.id + "-2";
+        let suffix = 2;
+        while (seenIds.has(candidate)) {
+          suffix += 1;
+          candidate = pkg.id + "-" + suffix;
+        }
+        pkg.id = candidate;
+      }
+      seenIds.add(pkg.id);
+      return pkg;
+    });
+}
+
 function cleanContent(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
 
@@ -479,12 +579,15 @@ function cleanContent(raw) {
     seenIds.add(product.id);
   });
 
+  const productIds = new Set(products.map((product) => product.id));
+  const packages = sanitizePackages(source.packages, productIds);
+
   const faq = (Array.isArray(source.faq) ? source.faq : DEFAULT_CONTENT.faq)
     .slice(0, 50)
     .map(cleanFaqItem)
     .filter((f) => f.question);
 
-  return { version: 1, banners, products, faq };
+  return { version: 1, banners, products, packages, faq };
 }
 
 /* Complète un contenu sauvegardé avec les valeurs par défaut manquantes
@@ -493,10 +596,13 @@ function normalizeStored(stored) {
   const base = JSON.parse(JSON.stringify(DEFAULT_CONTENT));
 
   if (!stored || typeof stored !== "object") {
+    const products = normalizeProductList(base.products);
+    const productIds = new Set(products.map((product) => product.id));
     return {
       version: 1,
       banners: base.banners,
-      products: normalizeProductList(base.products),
+      products,
+      packages: sanitizePackages(base.packages, productIds),
       faq: base.faq,
     };
   }
@@ -527,10 +633,15 @@ function normalizeStored(stored) {
     }
   });
 
+  const normalizedProducts = normalizeProductList(products);
+  const productIds = new Set(normalizedProducts.map((product) => product.id));
+  const packageSource = Array.isArray(stored.packages) ? stored.packages : base.packages;
+
   return {
     version: 1,
     banners,
-    products: normalizeProductList(products),
+    products: normalizedProducts,
+    packages: sanitizePackages(packageSource, productIds),
     faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
   };
 }
@@ -731,6 +842,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === "GET") {
     try {
       const stored = await store.get("content.json", { type: "json" });
+      const packagesWereStored = Boolean(stored && Array.isArray(stored.packages));
       const content = normalizeStored(stored);
       const currentSnapshot = buildDefaultSnapshot();
       const previousSnapshot = await readDefaultsSnapshot(store);
@@ -742,6 +854,7 @@ exports.handler = async (event) => {
       content.products = sync.products;
 
       if (
+        !packagesWereStored ||
         !previousSnapshot ||
         previousSnapshot.hash !== currentSnapshot.hash ||
         sync.changed
@@ -785,7 +898,19 @@ exports.handler = async (event) => {
     }
 
     try {
-      const raw = readJson(event, 512 * 1024);
+      let raw = readJson(event, 512 * 1024);
+
+      if (!Array.isArray(raw.packages)) {
+        let existingPackages = DEFAULT_CONTENT.packages;
+        try {
+          const existing = await store.get("content.json", { type: "json" });
+          if (existing && Array.isArray(existing.packages)) {
+            existingPackages = existing.packages;
+          }
+        } catch (error) {}
+        raw = Object.assign({}, raw, { packages: existingPackages });
+      }
+
       const content = cleanContent(raw);
 
       if (content.products.length === 0 && Array.isArray(raw.products) && raw.products.length > 0) {
@@ -814,4 +939,8 @@ exports.__test = {
   buildDefaultSnapshot,
   syncProductsWithDefaults,
   normalizeProductList,
+  cleanContent,
+  normalizeStored,
+  cleanPackage,
+  sanitizePackages,
 };

@@ -274,6 +274,31 @@
   .addon-check input{ width: auto; }
   .addon-check.disabled{ opacity: 0.45; }
 
+  #pkg-items{
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 8px;
+  }
+  .pkg-item{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--color-pink-pale);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-weight: 600;
+    font-size: 0.84rem;
+  }
+  .pkg-item input[type="checkbox"]{ width: auto; margin: 0; }
+  .pkg-item span{ flex: 1; }
+  .pkg-item .pkg-qty{
+    width: 64px;
+    margin: 0;
+    padding: 7px 8px;
+    border-radius: 8px;
+  }
+
   .form-actions{
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -537,10 +562,91 @@
       <!-- ---------- PRODUCTS TAB ---------- -->
       <div class="tab-panel" id="tab-articles" style="display:none;">
         <div class="box">
+          <h3>Packages</h3>
+          <p style="font-size:0.8rem;color:var(--color-gray);margin:0 0 14px;">
+            Group existing products into a package. Choice = the customer picks one option
+            (like Silent Disco). Bundle = all included products are sold together at the package price.
+          </p>
+          <div id="packagesTable"></div>
+          <button class="block-btn" id="newPackageBtn">+ New package</button>
+        </div>
+
+        <div class="box" id="packageFormBox" style="display:none;">
+          <h3 id="packageFormTitle">New package</h3>
+          <input type="hidden" id="pkg-id">
+
+          <label>Package name</label>
+          <input type="text" id="pkg-name" maxlength="100">
+
+          <label>Page</label>
+          <select id="pkg-page">
+            <option value="inflatables">Inflatables</option>
+            <option value="addons">Add-ons</option>
+            <option value="silent-disco">Silent Disco</option>
+            <option value="photo-booths">Photo Booths</option>
+          </select>
+
+          <label>Package type</label>
+          <select id="pkg-type">
+            <option value="choice">Choice - customer picks one option</option>
+            <option value="bundle">Bundle - all items included</option>
+          </select>
+
+          <div id="pkg-price-row">
+            <label>Package price ($)</label>
+            <input type="number" id="pkg-price" min="0" step="1">
+            <p style="font-size:0.8rem; color:var(--color-gray); margin:4px 0 0;">
+              For bundles only. Leave empty for "Call for price". Choice packages use each option's price.
+            </p>
+
+            <label>Old price ($) - optional</label>
+            <input type="number" id="pkg-oldprice" min="0" step="1">
+          </div>
+
+          <label>Position on page (1 = first, 2 = second...)</label>
+          <input type="number" id="pkg-position" min="1" max="99" value="1">
+          <p style="font-size:0.8rem; color:var(--color-gray); margin:4px 0 0;">
+            Products and packages share the page order. A package at position 1 comes before products at position 1.
+          </p>
+
+          <label>Short description</label>
+          <input type="text" id="pkg-short" maxlength="300">
+
+          <label>Long description</label>
+          <textarea id="pkg-long" rows="5" maxlength="3000"></textarea>
+
+          <label>Image (path)</label>
+          <input type="text" id="pkg-image" maxlength="300" placeholder="images/my-package.png">
+
+          <label>Badge (optional)</label>
+          <input type="text" id="pkg-badge" maxlength="30" placeholder="LIMITED TIME">
+
+          <div class="check-row">
+            <input type="checkbox" id="pkg-available" checked>
+            <span>Package available</span>
+          </div>
+
+          <div class="check-row">
+            <input type="checkbox" id="pkg-hideitems" checked>
+            <span>Hide included products from this page's catalog</span>
+          </div>
+
+          <label>Products in this package</label>
+          <div id="pkg-items"></div>
+          <div class="status" id="pkg-itemsStatus"></div>
+
+          <div class="form-actions">
+            <button class="block-btn" id="savePackageBtn" style="margin-top:8px;">Save package</button>
+            <button class="unblock-btn" id="cancelPackageBtn" style="margin-top:8px;">Cancel</button>
+          </div>
+          <div class="status" id="packageStatus"></div>
+        </div>
+
+        <div class="box">
           <h3>Products</h3>
           <p style="font-size:0.8rem;color:var(--color-gray);margin:0 0 14px;">
             Products sync automatically from the code when the admin loads; your edits are preserved.
-            Silent Disco's 3 headset offers stay separate products here and are grouped on the public site.
+            Products inside packages are hidden from this list by default.
           </p>
           <div class="bookings-toolbar" style="margin-bottom:14px;">
             <select id="articleFilterPage" style="width:auto; margin:0;">
@@ -551,9 +657,13 @@
               <option value="photo-booths">Photo Booths</option>
             </select>
             <span id="articleCount" style="font-weight:700; color:var(--color-gray); font-size:0.88rem; align-self:center;"></span>
+            <label style="display:inline-flex; align-items:center; gap:7px; font-size:0.82rem; color:var(--color-gray); font-weight:600;">
+              <input type="checkbox" id="showPackagedProducts" style="width:auto; margin:0;">
+              Show products inside packages
+            </label>
           </div>
           <div id="articlesTable"></div>
-          <button class="block-btn" id="newArticleBtn">➕ New product</button>
+          <button class="block-btn" id="newArticleBtn">+ New product</button>
         </div>
 
         <div class="box" id="articleFormBox" style="display:none;">
@@ -730,6 +840,7 @@
 
       renderBannersForm();
       renderFaqAdmin();
+      renderPackages();
       renderArticles();
       renderItemOptions();
       loadBlocked();
@@ -743,6 +854,7 @@
       const res = await fetch(API_CONTENT, { cache: "no-store" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       content = await res.json();
+      if (!Array.isArray(content.packages)) content.packages = [];
     }
 
     async function saveContent(statusEl, okMessage) {
@@ -938,6 +1050,283 @@
        PRODUCTS
        ============================================ */
     let articleFilterPage = "all";
+    let showPackagedProducts = false;
+
+    function getPackagedProductIdsForPage(page) {
+      const ids = new Set();
+      (content.packages || []).forEach(function (pkg) {
+        if (pkg.hideItems === false) return;
+        const packagePage = pkg.page || "inflatables";
+        if (page && packagePage !== page) return;
+        (pkg.items || []).forEach(function (item) {
+          const product = (content.products || []).find(function (p) {
+            return p.id === item.productId;
+          });
+          if (product && (product.page || "inflatables") === packagePage) {
+            ids.add(product.id);
+          }
+        });
+      });
+      return ids;
+    }
+
+    function packagePriceLabel(pkg) {
+      if (pkg.type === "choice") {
+        const prices = (pkg.items || [])
+          .map(function (item) {
+            const product = (content.products || []).find(function (p) {
+              return p.id === item.productId;
+            });
+            return product && product.available !== false ? Number(product.price) : NaN;
+          })
+          .filter(function (n) { return Number.isFinite(n) && n > 0; });
+        return prices.length ? "From " + money(Math.min.apply(null, prices)) : "Call for price";
+      }
+      return pkg.price == null ? "Call for price" : money(pkg.price);
+    }
+
+    function renderPackages() {
+      const root = document.getElementById("packagesTable");
+      if (!root) return;
+
+      const packages = (content.packages || []).slice().sort(function (a, b) {
+        return (PAGE_ORDER.indexOf(a.page || "inflatables") - PAGE_ORDER.indexOf(b.page || "inflatables")) ||
+          (Number(a.position) || 0) - (Number(b.position) || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""));
+      });
+
+      if (!packages.length) {
+        root.innerHTML = '<p style="color:var(--color-gray);">No packages yet.</p>';
+        return;
+      }
+
+      const rows = packages.map(function (pkg) {
+        return (
+          "<tr>" +
+            "<td>" + (pkg.position || 1) + "</td>" +
+            "<td><strong>" + escapeHtml(pkg.name) + "</strong></td>" +
+            "<td>" + (PAGE_LABELS[pkg.page] || PAGE_LABELS.inflatables) + "</td>" +
+            "<td>" + (pkg.type === "bundle" ? "Bundle" : "Choice") + "</td>" +
+            "<td>" + (pkg.items || []).length + "</td>" +
+            "<td>" + escapeHtml(packagePriceLabel(pkg)) + "</td>" +
+            "<td>" + (pkg.available ? '<span class="tag">Available</span>' : '<span class="tag off">Unavailable</span>') + "</td>" +
+            '<td style="white-space:nowrap;">' +
+              '<button class="row-btn edit" data-package-edit="' + escapeAttr(pkg.id) + '">Edit</button>' +
+              '<button class="row-btn del" data-package-del="' + escapeAttr(pkg.id) + '">Delete</button>' +
+            "</td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      root.innerHTML =
+        '<table class="articles-table">' +
+          "<thead><tr><th>Pos.</th><th>Name</th><th>Page</th><th>Type</th><th>Items</th><th>Price</th><th>Status</th><th></th></tr></thead>" +
+          "<tbody>" + rows + "</tbody>" +
+        "</table>";
+
+      root.querySelectorAll("[data-package-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openPackageForm(btn.getAttribute("data-package-edit"));
+        });
+      });
+
+      root.querySelectorAll("[data-package-del]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          const id = btn.getAttribute("data-package-del");
+          const pkg = (content.packages || []).find(function (p) { return p.id === id; });
+          if (!pkg) return;
+          if (!confirm('Delete package "' + pkg.name + '"?')) return;
+
+          content.packages = (content.packages || []).filter(function (p) { return p.id !== id; });
+          const ok = await saveContent(document.getElementById("packageStatus"), "Package deleted");
+          if (ok) {
+            renderPackages();
+            renderArticles();
+            document.getElementById("packageFormBox").style.display = "none";
+          }
+        });
+      });
+    }
+
+    function renderPackageItemPicker(selectedItems) {
+      const root = document.getElementById("pkg-items");
+      if (!root) return;
+
+      const selected = {};
+      (selectedItems || []).forEach(function (item) {
+        selected[item.productId] = Math.max(1, parseInt(item.quantity, 10) || 1);
+      });
+
+      let html = "";
+      PAGE_ORDER.forEach(function (page) {
+        const products = (content.products || [])
+          .filter(function (p) { return (p.page || "inflatables") === page; })
+          .slice()
+          .sort(function (a, b) {
+            return (a.position - b.position) ||
+              String(a.name || "").localeCompare(String(b.name || ""));
+          });
+        if (!products.length) return;
+
+        html += '<h4 style="margin:12px 0 2px;font-size:0.85rem;color:var(--color-dark);">' + PAGE_LABELS[page] + "</h4>";
+        products.forEach(function (product) {
+          const checked = Object.prototype.hasOwnProperty.call(selected, product.id);
+          const quantity = selected[product.id] || 1;
+          html +=
+            '<label class="pkg-item">' +
+              '<input type="checkbox" class="pkg-item-check" value="' + escapeAttr(product.id) + '"' + (checked ? " checked" : "") + ">" +
+              "<span>" + escapeHtml(product.name) + (product.price == null ? "" : " - $" + product.price) + "</span>" +
+              '<input type="number" class="pkg-qty" min="1" max="100" value="' + quantity + '">' +
+            "</label>";
+        });
+      });
+
+      root.innerHTML = html || '<p style="color:var(--color-gray);">No products available.</p>';
+
+      root.querySelectorAll(".pkg-item-check").forEach(function (box) {
+        box.addEventListener("change", updatePackageItemState);
+      });
+      root.querySelectorAll(".pkg-qty").forEach(function (input) {
+        input.addEventListener("input", updatePackageItemState);
+      });
+      updatePackageItemState();
+    }
+
+    function updatePackageItemState() {
+      const type = document.getElementById("pkg-type").value;
+      const boxes = Array.from(document.querySelectorAll("#pkg-items .pkg-item-check"));
+      const checked = boxes.filter(function (box) { return box.checked; }).length;
+
+      boxes.forEach(function (box) {
+        const row = box.closest(".pkg-item");
+        const qty = row.querySelector(".pkg-qty");
+        qty.style.display = box.checked && type === "bundle" ? "block" : "none";
+        qty.disabled = !box.checked || type !== "bundle";
+      });
+
+      document.getElementById("pkg-itemsStatus").textContent =
+        checked + " item" + (checked === 1 ? "" : "s") + " selected";
+    }
+
+    function updatePackageTypeUI() {
+      const type = document.getElementById("pkg-type").value;
+      document.getElementById("pkg-price-row").style.display = type === "bundle" ? "block" : "none";
+      updatePackageItemState();
+    }
+
+    function openPackageForm(id) {
+      const box = document.getElementById("packageFormBox");
+      const pkg = id
+        ? (content.packages || []).find(function (p) { return p.id === id; })
+        : null;
+
+      document.getElementById("packageFormTitle").textContent = pkg ? "Edit package" : "New package";
+      document.getElementById("pkg-id").value = pkg ? pkg.id : "";
+      document.getElementById("pkg-name").value = pkg ? pkg.name : "";
+      document.getElementById("pkg-page").value = pkg
+        ? (pkg.page || "inflatables")
+        : (articleFilterPage === "all" ? "inflatables" : articleFilterPage);
+      document.getElementById("pkg-type").value = pkg && pkg.type === "bundle" ? "bundle" : "choice";
+      document.getElementById("pkg-price").value = pkg && pkg.price != null ? pkg.price : "";
+      document.getElementById("pkg-oldprice").value = pkg && pkg.oldPrice != null ? pkg.oldPrice : "";
+      document.getElementById("pkg-position").value = pkg
+        ? (pkg.position || 1)
+        : Math.max(1, (content.packages || []).filter(function (p) { return p.page === document.getElementById("pkg-page").value; }).length + 1);
+      document.getElementById("pkg-short").value = pkg ? pkg.shortDesc || "" : "";
+      document.getElementById("pkg-long").value = pkg ? pkg.longDesc || "" : "";
+      document.getElementById("pkg-image").value = pkg ? pkg.image || "images/placeholder.svg" : "images/placeholder.svg";
+      document.getElementById("pkg-badge").value = pkg ? pkg.badge || "" : "";
+      document.getElementById("pkg-available").checked = pkg ? pkg.available !== false : true;
+      document.getElementById("pkg-hideitems").checked = pkg ? pkg.hideItems !== false : true;
+      document.getElementById("packageStatus").textContent = "";
+
+      renderPackageItemPicker(pkg ? pkg.items : []);
+      updatePackageTypeUI();
+      document.getElementById("articleFormBox").style.display = "none";
+      box.style.display = "block";
+      if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function savePackage() {
+      const status = document.getElementById("packageStatus");
+      const id = document.getElementById("pkg-id").value;
+      const name = document.getElementById("pkg-name").value.trim();
+      const page = document.getElementById("pkg-page").value;
+      const type = document.getElementById("pkg-type").value === "bundle" ? "bundle" : "choice";
+      const priceRaw = document.getElementById("pkg-price").value.trim();
+      const price = priceRaw === "" ? null : parseFloat(priceRaw);
+      const oldPriceRaw = document.getElementById("pkg-oldprice").value.trim();
+      const oldPrice = oldPriceRaw === "" ? null : parseFloat(oldPriceRaw);
+
+      if (!name) {
+        status.textContent = "Package name is required";
+        status.style.color = "#e63329";
+        return;
+      }
+      if (type === "bundle" && price !== null && (!Number.isFinite(price) || price < 0)) {
+        status.textContent = "Invalid package price";
+        status.style.color = "#e63329";
+        return;
+      }
+      if (oldPrice !== null && (!Number.isFinite(oldPrice) || oldPrice < 0)) {
+        status.textContent = "Invalid old price";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const items = Array.from(document.querySelectorAll("#pkg-items .pkg-item-check:checked"))
+        .map(function (box) {
+          const qty = box.closest(".pkg-item").querySelector(".pkg-qty");
+          return {
+            productId: box.value,
+            quantity: type === "bundle" ? Math.min(100, Math.max(1, parseInt(qty.value, 10) || 1)) : 1,
+          };
+        });
+
+      if (!items.length) {
+        status.textContent = "Select at least one product";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const pkg = {
+        id: id || "pkg-" + slugify(name) + "-" + Date.now().toString(36),
+        name: name,
+        page: page,
+        type: type,
+        price: type === "bundle" ? price : null,
+        oldPrice: type === "bundle" && Number.isFinite(oldPrice) ? oldPrice : null,
+        badge: document.getElementById("pkg-badge").value.trim(),
+        shortDesc: document.getElementById("pkg-short").value.trim(),
+        longDesc: document.getElementById("pkg-long").value.trim(),
+        image: document.getElementById("pkg-image").value.trim() || "images/placeholder.svg",
+        position: parseInt(document.getElementById("pkg-position").value, 10) || 1,
+        available: document.getElementById("pkg-available").checked,
+        hideItems: document.getElementById("pkg-hideitems").checked,
+        items: items,
+      };
+
+      content.packages = (content.packages || []).filter(function (p) { return p.id !== pkg.id; });
+      content.packages.push(pkg);
+      content.packages.sort(function (a, b) {
+        return (PAGE_ORDER.indexOf(a.page) - PAGE_ORDER.indexOf(b.page)) ||
+          (Number(a.position) || 0) - (Number(b.position) || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""));
+      });
+
+      status.textContent = "Saving...";
+      status.style.color = "var(--color-gray)";
+      const ok = await saveContent(status, "Package saved");
+      if (ok) {
+        articleFilterPage = page;
+        document.getElementById("articleFilterPage").value = page;
+        renderPackages();
+        renderArticles();
+        openPackageForm(pkg.id);
+        status.textContent = "Package saved";
+        status.style.color = "#27ae60";
+      }
+    }
 
     function normalizeAdminPositions(products) {
       const out = [];
@@ -970,16 +1359,27 @@
             return (p.page || "inflatables") === articleFilterPage;
           });
 
+      const hiddenIds = getPackagedProductIdsForPage(
+        articleFilterPage === "all" ? "" : articleFilterPage
+      );
+      const visibleProducts = showPackagedProducts
+        ? products
+        : products.filter(function (p) { return !hiddenIds.has(p.id); });
+      const hiddenCount = products.length - visibleProducts.length;
+
       if (countEl) {
-        countEl.textContent = products.length + " product" + (products.length === 1 ? "" : "s");
+        countEl.textContent = visibleProducts.length + " product" + (visibleProducts.length === 1 ? "" : "s") +
+          (hiddenCount ? " + " + hiddenCount + " in package" + (hiddenCount === 1 ? "" : "s") : "");
       }
 
-      if (!products.length) {
-        root.innerHTML = '<p style="color:var(--color-gray);">No products on this page yet.</p>';
+      if (!visibleProducts.length) {
+        root.innerHTML = '<p style="color:var(--color-gray);">' +
+          (hiddenCount ? "All products here are inside packages. Enable \"Show products inside packages\" to edit them." : "No products on this page yet.") +
+          "</p>";
         return;
       }
 
-      let rows = products.map(function (p, i) {
+      let rows = visibleProducts.map(function (p, i) {
         return (
           "<tr>" +
             "<td>" + p.position + "</td>" +
@@ -1020,6 +1420,7 @@
           const ok = await saveContent(document.getElementById("articleStatus"), "Product deleted");
           if (ok) {
             renderArticles();
+            renderPackages();
             renderItemOptions();
             loadBlocked();
             document.getElementById("articleFormBox").style.display = "none";
@@ -1078,6 +1479,7 @@
     function openArticleForm(id) {
       const box = document.getElementById("articleFormBox");
       box.style.display = "block";
+      document.getElementById("packageFormBox").style.display = "none";
 
       const product = id
         ? content.products.find(function (p) { return p.id === id; })
@@ -1192,6 +1594,7 @@
           document.getElementById("articleFilterPage").value = articleFilterPage;
         }
         renderArticles();
+        renderPackages();
         renderItemOptions();
         loadBlocked();
         openArticleForm(product.id);
@@ -1827,6 +2230,18 @@
     });
     document.getElementById("newArticleBtn").addEventListener("click", function () {
       openArticleForm(null);
+    });
+    document.getElementById("savePackageBtn").addEventListener("click", savePackage);
+    document.getElementById("cancelPackageBtn").addEventListener("click", function () {
+      document.getElementById("packageFormBox").style.display = "none";
+    });
+    document.getElementById("newPackageBtn").addEventListener("click", function () {
+      openPackageForm(null);
+    });
+    document.getElementById("pkg-type").addEventListener("change", updatePackageTypeUI);
+    document.getElementById("showPackagedProducts").addEventListener("change", function (e) {
+      showPackagedProducts = e.target.checked;
+      renderArticles();
     });
     document.getElementById("articleFilterPage").addEventListener("change", function (e) {
       articleFilterPage = e.target.value;

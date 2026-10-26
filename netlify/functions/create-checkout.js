@@ -76,7 +76,9 @@ exports.handler = async (event) => {
 
     await assertDateAvailable(
       eventDate,
-      items.map((entry) => entry.product.id)
+      items.reduce(function (ids, entry) {
+        return ids.concat(entry.bookingIds || [entry.product.id]);
+      }, [])
     );
 
     const lineItems = items.map((entry) => ({

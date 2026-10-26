@@ -198,6 +198,9 @@ const DEFAULT_CONTENT = {
     /* ----- PHOTO BOOTHS PAGE ----- */
     { id: "photo-booth-rental", name: "Photo Booth Rental", page: "photo-booths", price: null, oldPrice: null, badge: "", shortDesc: "Photo booth with unlimited prints, fun props and a friendly attendant.", longDesc: "Make your event unforgettable with our photo booth rental. Includes unlimited prints, a wide selection of props and a friendly attendant. Perfect for birthdays, weddings, corporate events and more. Call us for a custom quote.", dimension: "", image: "images/photo-booths.webp", position: 1, available: true, url: "", addons: [] },
   ],
+  packages: [
+    { id: "silent-disco-package", name: "Silent Disco", page: "silent-disco", type: "choice", price: null, oldPrice: null, badge: "", shortDesc: "Dance floor included. Choose 10, 30 or 50 wireless headsets.", longDesc: "Perfect for teen parties, birthdays and corporate events, indoors or outdoors. Add a dance floor and up to 50 wireless headsets.", image: "images/silent-disco.png", position: 2, available: true, hideItems: true, items: [{ productId: "silent-disco-10", quantity: 1 }, { productId: "silent-disco-30", quantity: 1 }, { productId: "silent-disco-50", quantity: 1 }] }
+  ],
   faq: [
     {
       id: "booking-advance",
@@ -361,6 +364,115 @@ function silentDiscoCardHTML(variants) {
   );
 }
 
+/* ---------- Packages ---------- */
+function packageEntries(pkg, content) {
+  const products = content.products || [];
+  return (pkg.items || []).map(function (item) {
+    const product = products.find(function (p) { return p.id === item.productId; });
+    if (!product) return null;
+    return {
+      product,
+      quantity: Math.min(100, Math.max(1, parseInt(item.quantity, 10) || 1)),
+    };
+  }).filter(Boolean);
+}
+
+function packagePriceInfo(pkg, content) {
+  if (pkg.type === "choice") {
+    const prices = packageEntries(pkg, content)
+      .filter(function (entry) { return entry.product.available !== false; })
+      .map(function (entry) { return Number(entry.product.price); })
+      .filter(function (n) { return Number.isFinite(n) && n > 0; });
+    return {
+      price: prices.length ? Math.min.apply(null, prices) : null,
+      oldPrice: null,
+      from: true,
+    };
+  }
+
+  const price = pkg.price !== null && pkg.price !== undefined && pkg.price !== ""
+    ? Number(pkg.price)
+    : null;
+  const oldPrice = pkg.oldPrice !== null && pkg.oldPrice !== undefined && pkg.oldPrice !== ""
+    ? Number(pkg.oldPrice)
+    : null;
+
+  return {
+    price: Number.isFinite(price) && price > 0 ? price : null,
+    oldPrice: Number.isFinite(oldPrice) && oldPrice > 0 ? oldPrice : null,
+    from: false,
+  };
+}
+
+function packageDetailUrl(pkg) {
+  return "product.html?package=" + encodeURIComponent(pkg.id);
+}
+
+function packageOptionLabel(product, pkg) {
+  const raw = String(product && product.name || "");
+  const prefix = String(pkg && pkg.name || "");
+  if (prefix && raw.toLowerCase().indexOf(prefix.toLowerCase()) === 0) {
+    const rest = raw.slice(prefix.length).replace(/^[\s\-–—:]+/, "");
+    if (rest) return rest;
+  }
+  return raw;
+}
+
+function packageCardHTML(pkg, content) {
+  const entries = packageEntries(pkg, content);
+  const availableEntries = entries.filter(function (entry) {
+    return entry.product.available !== false;
+  });
+  const info = packagePriceInfo(pkg, content);
+  const available = pkg.available !== false &&
+    (pkg.type === "choice" ? availableEntries.length > 0 : true);
+  const image = safeImage(pkg.image);
+  const count = pkg.type === "choice"
+    ? availableEntries.length + " option" + (availableEntries.length === 1 ? "" : "s")
+    : entries.length + " item" + (entries.length === 1 ? "" : "s") + " included";
+
+  let priceHTML;
+  if (info.price === null) {
+    priceHTML = "Call for price";
+  } else if (info.from) {
+    priceHTML = "From " + money(info.price);
+  } else if (info.oldPrice) {
+    priceHTML = '<span class="price-old">' + money(info.oldPrice) + '</span><span class="price-new">' + money(info.price) + "</span>";
+  } else {
+    priceHTML = money(info.price);
+  }
+
+  let action;
+  if (!available) {
+    action = '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
+  } else if (pkg.type === "choice") {
+    action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-pink btn-sm">Choose package</a>';
+  } else {
+    action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-outline btn-sm">View Package</a>';
+    if (info.price !== null) {
+      action += '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(pkg.id) +
+        '" data-name="' + esc(pkg.name) + '" data-price="' + esc(info.price) +
+        '" data-image="' + esc(image) + '">Add to cart</button>';
+    } else {
+      action += '<a href="tel:2674053125" class="btn btn-pink btn-sm">Call for price</a>';
+    }
+  }
+
+  return (
+    '<article class="product-card product-card--package' + (available ? "" : " is-unavailable") + '">' +
+      '<div class="product-image"><img src="' + esc(image) + '" alt="' + esc(pkg.name) + '" loading="lazy" /></div>' +
+      '<div class="product-card-body">' +
+        "<h3>" + esc(pkg.name) + "</h3>" +
+        (pkg.badge ? '<span class="promo-badge">' + esc(pkg.badge) + "</span>" : "") +
+        '<p class="product-short">' + esc(pkg.shortDesc || count) + "</p>" +
+        '<p class="package-count">' + esc(count) + "</p>" +
+        '<span class="price-tag">' + priceHTML + "</span>" +
+        action +
+      "</div>" +
+    "</article>"
+  );
+}
+
 /* ---------- Loading ---------- */
 async function loadSiteContent() {
   if (cachedContent) return cachedContent;
@@ -371,11 +483,14 @@ async function loadSiteContent() {
     if (!Array.isArray(cachedContent.faq) || cachedContent.faq.length === 0) {
       cachedContent.faq = DEFAULT_CONTENT.faq;
     }
+    if (!Array.isArray(cachedContent.packages)) cachedContent.packages = [];
     normalizeProductPositions(cachedContent);
+    normalizePackages(cachedContent);
   } catch (e) {
     contentIsFallback = true;
     cachedContent = DEFAULT_CONTENT;
     normalizeProductPositions(cachedContent);
+    normalizePackages(cachedContent);
   }
   return cachedContent;
 }
@@ -402,6 +517,15 @@ function normalizeProductPositions(content) {
   });
 
   content.products = out;
+}
+
+function normalizePackages(content) {
+  content.packages = (Array.isArray(content.packages) ? content.packages : []).map(function (pkg) {
+    return Object.assign({}, pkg, {
+      page: PAGES.indexOf(pkg.page) !== -1 ? pkg.page : "inflatables",
+      items: Array.isArray(pkg.items) ? pkg.items : [],
+    });
+  });
 }
 
 /* ---------- Banners ---------- */
@@ -504,15 +628,33 @@ function productCardHTML(p) {
 /* ---------- Catalog (per page) ---------- */
 function renderCatalog(root, content) {
   const page = root.getAttribute("data-page") || "inflatables";
+  const packages = (content.packages || []).filter(function (pkg) {
+    return (pkg.page || "inflatables") === page;
+  });
+  const hiddenIds = new Set();
+
+  packages.forEach(function (pkg) {
+    if (pkg.hideItems === false) return;
+    (pkg.items || []).forEach(function (item) {
+      const product = (content.products || []).find(function (p) {
+        return p.id === item.productId;
+      });
+      if (product && (product.page || "inflatables") === page) {
+        hiddenIds.add(product.id);
+      }
+    });
+  });
+
   const items = (content.products || [])
     .filter(function (p) { return (p.page || "inflatables") === page; })
+    .filter(function (p) { return !hiddenIds.has(p.id); })
     .slice()
     .sort(function (a, b) {
       return (Number(a.position) || 0) - (Number(b.position) || 0) ||
         String(a.name || "").localeCompare(String(b.name || ""));
     });
 
-  if (page === "silent-disco") {
+  if (page === "silent-disco" && !packages.length) {
     const danceFloor = items.filter(function (p) { return p.id === "dance-floor"; });
     const variants = items.filter(isSilentDiscoVariant);
     const others = items.filter(function (p) {
@@ -528,8 +670,32 @@ function renderCatalog(root, content) {
     return;
   }
 
-  root.innerHTML = items.length
-    ? '<div class="products-grid">' + items.map(productCardHTML).join("") + "</div>"
+  const cards = packages.map(function (pkg) {
+    return {
+      position: Number(pkg.position) || 0,
+      package: true,
+      name: pkg.name || "",
+      html: packageCardHTML(pkg, content),
+    };
+  });
+
+  items.forEach(function (product) {
+    cards.push({
+      position: Number(product.position) || 0,
+      package: false,
+      name: product.name || "",
+      html: productCardHTML(product),
+    });
+  });
+
+  cards.sort(function (a, b) {
+    return (a.position - b.position) ||
+      (a.package === b.package ? 0 : a.package ? -1 : 1) ||
+      String(a.name).localeCompare(String(b.name));
+  });
+
+  root.innerHTML = cards.length
+    ? '<div class="products-grid">' + cards.map(function (entry) { return entry.html; }).join("") + "</div>"
     : '<p class="catalog-empty">No products available right now.</p>';
 
   bindAddButtons(root);
@@ -716,6 +882,194 @@ function renderProductPage(root, content, product) {
   bindAddButtons(root);
 }
 
+function renderPackagePage(root, content, pkg, initialId) {
+  const entries = packageEntries(pkg, content);
+  const pageLink = PAGE_LINKS[pkg.page] || PAGE_LINKS.inflatables;
+  const packageImage = safeImage(pkg.image);
+  const shortDesc = pkg.shortDesc || "";
+  const longDesc = pkg.longDesc && pkg.longDesc !== shortDesc ? pkg.longDesc : "";
+  const badge = pkg.badge
+    ? '<span class="promo-badge">' + esc(pkg.badge) + "</span>"
+    : "";
+
+  if (!entries.length) {
+    root.innerHTML =
+      '<section class="products-section"><div class="container">' +
+        '<div class="cart-empty" style="display:block; text-align:center;">' +
+          '<p style="margin-bottom:20px;">This package is not available right now.</p>' +
+          '<a href="' + esc(pageLink.href) + '" class="btn btn-pink">Back to ' + esc(pageLink.label) + "</a>" +
+        "</div>" +
+      "</div></section>";
+    return;
+  }
+
+  if (pkg.type === "choice") {
+    const availableEntries = entries.filter(function (entry) {
+      return entry.product.available !== false;
+    });
+    const initialEntry =
+      entries.find(function (entry) {
+        return entry.product.id === initialId && entry.product.available !== false;
+      }) ||
+      availableEntries[0] ||
+      entries[0];
+    const initial = initialEntry.product;
+
+    function displayImage(product) {
+      const productImage = safeImage(product && product.image);
+      return productImage && productImage !== "images/placeholder.svg"
+        ? productImage
+        : packageImage;
+    }
+
+    function actionHTML(product, image) {
+      if (pkg.available === false || product.available === false) {
+        return '<a href="tel:2674053125" class="btn btn-pink">Currently unavailable - call us</a>';
+      }
+      if (product.price === null || product.price === undefined || product.price === "" || Number(product.price) <= 0) {
+        return '<a href="tel:2674053125" class="btn btn-pink">Call for price</a>';
+      }
+      return '<button class="btn btn-pink" id="pkg-add" data-add-to-cart' +
+        ' data-id="' + esc(product.id) +
+        '" data-name="' + esc(product.name) +
+        '" data-price="' + esc(product.price) +
+        '" data-image="' + esc(image) + '">Add to cart</button>' +
+        '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
+    }
+
+    const optionsHTML = entries.map(function (entry) {
+      const product = entry.product;
+      const disabled = product.available === false;
+      return (
+        '<label class="variant-option' + (disabled ? " is-disabled" : "") + '">' +
+          '<input type="radio" name="pkg-option" value="' + esc(product.id) + '"' +
+            (product.id === initial.id ? " checked" : "") +
+            (disabled ? " disabled" : "") + ">" +
+          '<span class="variant-label">' + esc(packageOptionLabel(product, pkg)) + "</span>" +
+          '<span class="variant-price">' + (product.price != null ? money(product.price) : "Call") + "</span>" +
+        "</label>"
+      );
+    }).join("");
+
+    const initialImage = displayImage(initial);
+    const initialPrice = initial.price != null ? money(initial.price) : "Call for price";
+
+    root.innerHTML =
+      '<section class="product-detail">' +
+        '<div class="container">' +
+          '<div class="product-detail-inner">' +
+            '<div class="detail-image-card"><img id="pkg-image" src="' + esc(initialImage) + '" alt="' + esc(pkg.name) + '" /></div>' +
+            '<div class="detail-info-card">' +
+              "<h1>" + esc(pkg.name) + "</h1>" +
+              badge +
+              (pkg.available === false ? '<span class="promo-badge badge-unavailable">CURRENTLY UNAVAILABLE</span>' : "") +
+              '<p class="detail-desc">' + esc(shortDesc) + "</p>" +
+              (longDesc ? '<p class="detail-long">' + esc(longDesc) + "</p>" : "") +
+              '<div class="variant-picker">' +
+                '<h3 class="variant-title">Choose an option</h3>' +
+                '<div class="variant-options">' + optionsHTML + "</div>" +
+              "</div>" +
+              '<span class="price-tag" id="pkg-price">' + initialPrice + "</span>" +
+              '<div class="detail-buttons" id="pkg-actions">' + actionHTML(initial, initialImage) + "</div>" +
+              '<a href="' + esc(pageLink.href) + '" class="btn btn-outline btn-sm">← Back to ' + esc(pageLink.label) + "</a>" +
+            "</div>" +
+          "</div>" +
+        "</div>" +
+      "</section>";
+
+    root.querySelectorAll('input[name="pkg-option"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        const chosen = entries.find(function (entry) {
+          return entry.product.id === radio.value;
+        });
+        if (!chosen) return;
+        const product = chosen.product;
+        const image = displayImage(product);
+
+        const imageEl = root.querySelector("#pkg-image");
+        if (imageEl) {
+          imageEl.src = image;
+          imageEl.alt = product.name;
+        }
+
+        const priceEl = root.querySelector("#pkg-price");
+        if (priceEl) {
+          priceEl.textContent = product.price != null ? money(product.price) : "Call for price";
+        }
+
+        const actions = root.querySelector("#pkg-actions");
+        if (actions) actions.innerHTML = actionHTML(product, image);
+
+        const url = new URL(window.location.href);
+        url.searchParams.set("package", pkg.id);
+        url.searchParams.set("id", product.id);
+        history.replaceState(null, "", url);
+
+        bindAddButtons(root);
+      });
+    });
+
+    bindAddButtons(root);
+    return;
+  }
+
+  const info = packagePriceInfo(pkg, content);
+  const available = pkg.available !== false;
+  const itemsHTML = entries.map(function (entry) {
+    return (
+      "<li>" +
+        "<span>" + esc(entry.product.name) + "</span>" +
+        "<span>x" + entry.quantity + "</span>" +
+      "</li>"
+    );
+  }).join("");
+
+  let priceHTML;
+  if (info.price === null) {
+    priceHTML = "Call for price";
+  } else if (info.oldPrice) {
+    priceHTML = '<span class="price-old">' + money(info.oldPrice) + '</span><span class="price-new">' + money(info.price) + "</span>";
+  } else {
+    priceHTML = money(info.price);
+  }
+
+  let actions;
+  if (!available) {
+    actions = '<a href="tel:2674053125" class="btn btn-pink">Currently unavailable - call us</a>';
+  } else if (info.price === null) {
+    actions = '<a href="tel:2674053125" class="btn btn-pink">Call for price</a>';
+  } else {
+    actions = '<button class="btn btn-pink" data-add-to-cart' +
+      ' data-id="' + esc(pkg.id) +
+      '" data-name="' + esc(pkg.name) +
+      '" data-price="' + esc(info.price) +
+      '" data-image="' + esc(packageImage) + '">Add package to cart</button>' +
+      '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
+  }
+
+  root.innerHTML =
+    '<section class="product-detail">' +
+      '<div class="container">' +
+        '<div class="product-detail-inner">' +
+          '<div class="detail-image-card"><img src="' + esc(packageImage) + '" alt="' + esc(pkg.name) + '" /></div>' +
+          '<div class="detail-info-card">' +
+            "<h1>" + esc(pkg.name) + "</h1>" +
+            badge +
+            (pkg.available === false ? '<span class="promo-badge badge-unavailable">CURRENTLY UNAVAILABLE</span>' : "") +
+            '<p class="detail-desc">' + esc(shortDesc) + "</p>" +
+            (longDesc ? '<p class="detail-long">' + esc(longDesc) + "</p>" : "") +
+            '<div class="package-includes"><h3>Included in this package</h3><ul>' + itemsHTML + "</ul></div>" +
+            '<span class="price-tag">' + priceHTML + "</span>" +
+            '<div class="detail-buttons">' + actions + "</div>" +
+            '<a href="' + esc(pageLink.href) + '" class="btn btn-outline btn-sm">← Back to ' + esc(pageLink.label) + "</a>" +
+          "</div>" +
+        "</div>" +
+      "</div>" +
+    "</section>";
+
+  bindAddButtons(root);
+}
+
 /* ---------- FAQ page ---------- */
 function renderFaq(root, content) {
   const items = (content.faq || [])
@@ -757,38 +1111,64 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   const productRoot = document.getElementById("product-root");
   if (productRoot) {
-    const id = new URLSearchParams(window.location.search).get("id");
-    const product = content.products.find(function (p) { return p.id === id; });
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    const packageId = params.get("package");
+    const packages = content.packages || [];
+    let pkg = packageId
+      ? packages.find(function (p) { return p.id === packageId; })
+      : null;
 
-    if (!product) {
-      productRoot.innerHTML =
-        '<section class="products-section"><div class="container">' +
-          '<div class="cart-empty" style="display:block; text-align:center;">' +
-            "<p style=\"margin-bottom:20px;\">This product could not be found.</p>" +
-            '<a href="inflatables.html" class="btn btn-pink">Browse Inflatables</a>' +
-          "</div>" +
-        "</div></section>";
-    } else {
-      const pageLink = PAGE_LINKS[product.page] || PAGE_LINKS.inflatables;
+    if (!pkg && id) {
+      pkg = packages.find(function (p) {
+        return p.type === "choice" && (p.items || []).some(function (item) {
+          return item.productId === id;
+        });
+      });
+    }
+
+    if (pkg) {
+      const pageLink = PAGE_LINKS[pkg.page] || PAGE_LINKS.inflatables;
       document.querySelectorAll(".main-nav a.active").forEach(function (link) {
         link.classList.remove("active");
       });
       const activeLink = document.querySelector('.main-nav a[href="' + pageLink.href + '"]');
       if (activeLink) activeLink.classList.add("active");
+      document.title = pkg.name + " – Main Line Bounce";
+      renderPackagePage(productRoot, content, pkg, id);
+    } else {
+      const product = content.products.find(function (p) { return p.id === id; });
 
-      if (isSilentDiscoVariant(product)) {
-        const variants = content.products
-          .filter(isSilentDiscoVariant)
-          .slice()
-          .sort(function (a, b) {
-            return (Number(a.position) || 0) - (Number(b.position) || 0) ||
-              String(a.name || "").localeCompare(String(b.name || ""));
-          });
-        document.title = "Silent Disco – Main Line Bounce";
-        renderSilentDiscoPage(productRoot, variants, product.id);
+      if (!product) {
+        productRoot.innerHTML =
+          '<section class="products-section"><div class="container">' +
+            '<div class="cart-empty" style="display:block; text-align:center;">' +
+              "<p style=\"margin-bottom:20px;\">This product could not be found.</p>" +
+              '<a href="inflatables.html" class="btn btn-pink">Browse Inflatables</a>' +
+            "</div>" +
+          "</div></section>";
       } else {
-        document.title = product.name + " – Main Line Bounce";
-        renderProductPage(productRoot, content, product);
+        const pageLink = PAGE_LINKS[product.page] || PAGE_LINKS.inflatables;
+        document.querySelectorAll(".main-nav a.active").forEach(function (link) {
+          link.classList.remove("active");
+        });
+        const activeLink = document.querySelector('.main-nav a[href="' + pageLink.href + '"]');
+        if (activeLink) activeLink.classList.add("active");
+
+        if (isSilentDiscoVariant(product)) {
+          const variants = content.products
+            .filter(isSilentDiscoVariant)
+            .slice()
+            .sort(function (a, b) {
+              return (Number(a.position) || 0) - (Number(b.position) || 0) ||
+                String(a.name || "").localeCompare(String(b.name || ""));
+            });
+          document.title = "Silent Disco – Main Line Bounce";
+          renderSilentDiscoPage(productRoot, variants, product.id);
+        } else {
+          document.title = product.name + " – Main Line Bounce";
+          renderProductPage(productRoot, content, product);
+        }
       }
     }
   }
