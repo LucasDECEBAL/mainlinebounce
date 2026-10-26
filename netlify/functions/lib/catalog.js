@@ -60,15 +60,40 @@ function normalizeCart(rawCart, catalog) {
       throw new HttpError(400, "Invalid cart item");
     }
 
-    const id = line(item.id, 60);
-    const pkg = packages.get(id);
+    const rawId = line(item.id, 140);
+    let packageId = rawId;
+    let choiceId = "";
+    const separator = rawId.indexOf("::");
+    if (separator !== -1) {
+      packageId = rawId.slice(0, separator);
+      choiceId = rawId.slice(separator + 2);
+    }
+
+    const pkg = packages.get(packageId);
 
     if (pkg) {
-      if (pkg.type !== "bundle") {
+      if (pkg.type === "choice") {
         throw new HttpError(400, "Choose an option in this package");
       }
       if (pkg.available === false) {
         throw new HttpError(409, "One of the selected items is currently unavailable");
+      }
+
+      let choiceProduct = null;
+      if (pkg.type === "mixed") {
+        const allowed = (pkg.choices || []).some(
+          (entry) => line(entry.productId, 60) === choiceId
+        );
+        if (!choiceId || !allowed) {
+          throw new HttpError(400, "Choose an option in this package");
+        }
+        choiceProduct = products.get(choiceId);
+        if (!choiceProduct) {
+          throw new HttpError(409, "The selected option is no longer available");
+        }
+        if (choiceProduct.available === false) {
+          throw new HttpError(409, "The selected option is currently unavailable");
+        }
       }
 
       const price = Number(pkg.price);
@@ -89,11 +114,16 @@ function normalizeCart(rawCart, catalog) {
         }
       });
 
+      if (choiceProduct) bookingIds.push(choiceProduct.id);
+
       const rawQty = item.qty !== undefined ? item.qty : item.quantity;
       const quantity = Math.min(MAX_QTY, Math.max(1, parseInt(rawQty, 10) || 1));
-      const previous = merged.get(id);
-      merged.set(id, {
-        product: pkg,
+      const key = pkg.id + (choiceProduct ? "::" + choiceProduct.id : "");
+      const previous = merged.get(key);
+      merged.set(key, {
+        product: Object.assign({}, pkg, {
+          name: pkg.name + (choiceProduct ? " - " + choiceProduct.name : ""),
+        }),
         price,
         quantity: Math.min(MAX_QTY, (previous ? previous.quantity : 0) + quantity),
         bookingIds,
@@ -101,7 +131,7 @@ function normalizeCart(rawCart, catalog) {
       return;
     }
 
-    const product = products.get(id);
+    const product = products.get(rawId);
     if (!product) {
       throw new HttpError(400, "Your cart contains an item that is no longer available");
     }

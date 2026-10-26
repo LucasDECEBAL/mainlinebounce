@@ -64,40 +64,6 @@ const DEFAULT_CONTENT = {
   ],
   products: [
     {
-      id: "combo-special-1",
-      name: "Magic Castle + SuperHero Bundle",
-      category: "kids",
-      price: 500,
-      oldPrice: 675,
-      badge: "LIMITED TIME",
-      shortDesc: "Two inflatables in one bundle — double the fun.",
-      longDesc:
-        "Get TWO amazing inflatables together! Combine our classic Magic Castle with the action-packed Super Hero Duo Combo. Double the fun, double the memories for your party!",
-      dimension: "",
-      image: "images/magic-castle-superhero-combo.png",
-      position: 1,
-      available: true,
-      url: "combo-special-1.html",
-      addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
-    },
-    {
-      id: "combo-special-2",
-      name: "Party Package",
-      category: "corporate",
-      price: 550,
-      oldPrice: 850,
-      badge: "LIMITED TIME",
-      shortDesc: "Inflatable of your choice + tables, chairs, tent & mister.",
-      longDesc:
-        "The ultimate party solution! Choose Magic Castle or Super Hero Duo Combo and get it bundled with 3 tables, 24 chairs, 1 tent and a mister water system. Everything you need for an unforgettable celebration.",
-      dimension: "",
-      image: "images/magic-castle-or-superhero-combo.png",
-      position: 1,
-      available: true,
-      url: "combo-special-2.html",
-      addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
-    },
-    {
       id: "dolphin-slide",
       name: "Water Slide",
       category: "teen",
@@ -311,18 +277,86 @@ const DEFAULT_CONTENT = {
       shortDesc: "Dance floor included. Choose 10, 30 or 50 wireless headsets.",
       longDesc:
         "Perfect for teen parties, birthdays and corporate events, indoors or outdoors. Add a dance floor and up to 50 wireless headsets.",
+      features: [
+        "Choose 10, 30 or 50 wireless headsets",
+        "Dance floor included",
+        "Perfect for teen parties, birthdays and corporate events",
+      ],
       image: "images/silent-disco.png",
       position: 2,
       available: true,
       hideItems: true,
-      items: [
+      choices: [
         { productId: "silent-disco-10", quantity: 1 },
         { productId: "silent-disco-30", quantity: 1 },
         { productId: "silent-disco-50", quantity: 1 },
       ],
+      items: [],
     },
-  ],
-  faq: [
+    {
+      id: "magic-castle-superhero-package",
+      name: "Magic Castle + SuperHero Bundle",
+      page: "inflatables",
+      type: "bundle",
+      price: 500,
+      oldPrice: 675,
+      badge: "LIMITED TIME",
+      shortDesc: "Two inflatables in one bundle - double the fun.",
+      longDesc:
+        "Get TWO amazing inflatables together! Combine our classic Magic Castle with the action-packed Super Hero Duo Combo. Double the fun, double the memories for your party!",
+      features: [
+        "2 inflatables in one package",
+        "Magic Castle + Super Hero Duo Combo included",
+        "Perfect for larger events",
+        "Save $175 compared to individual rentals",
+        "Delivery available",
+      ],
+      image: "images/magic-castle-superhero-combo.png",
+      position: 1,
+      available: true,
+      hideItems: false,
+      choices: [],
+      items: [
+        { productId: "magic-castle", quantity: 1 },
+        { productId: "superhero-combo", quantity: 1 },
+      ],
+    },
+    {
+      id: "party-package",
+      name: "Party Package",
+      page: "inflatables",
+      type: "mixed",
+      price: 550,
+      oldPrice: 850,
+      badge: "GRAND OPENING PRICE",
+      shortDesc: "Your choice of inflatable + tables, chairs, tent & mister.",
+      longDesc:
+        "The ultimate party solution! Choose your favorite inflatable (Magic Castle OR Super Hero Duo Combo) and get it bundled with 3 tables, 24 chairs, 1 tent, and a mister water system. Everything you need for an unforgettable celebration!",
+      features: [
+        "Choose Magic Castle OR Super Hero Duo Combo",
+        "3 tables included",
+        "24 chairs included",
+        "1 large tent included",
+        "Misting Fan included",
+        "Perfect for large events",
+        "Save $300 on this package!",
+      ],
+      image: "images/magic-castle-or-superhero-combo.png",
+      position: 1,
+      available: true,
+      hideItems: false,
+      choices: [
+        { productId: "magic-castle", quantity: 1 },
+        { productId: "superhero-combo", quantity: 1 },
+      ],
+      items: [
+        { productId: "white-folding-tables", quantity: 3 },
+        { productId: "white-folding-chairs", quantity: 24 },
+        { productId: "tent", quantity: 1 },
+        { productId: "misting-fan", quantity: 1 },
+      ],
+    },
+  ],  faq: [
     {
       id: "booking-advance",
       question: "How far in advance should I book?",
@@ -384,6 +418,13 @@ const DEFAULT_CONTENT = {
 
 const CATEGORIES = ["kids", "teen", "corporate"];
 const PAGES = ["inflatables", "addons", "silent-disco", "photo-booths"];
+const LEGACY_PRODUCT_IDS = new Set(["combo-special-1", "combo-special-2"]);
+const PACKAGES_VERSION = 2;
+const PACKAGE_MIGRATION_IDS = [
+  "silent-disco-package",
+  "magic-castle-superhero-package",
+  "party-package",
+];
 const BANNER_KEYS = ["home", "inflatables", "addons", "youngAdult"];
 
 /* ============================================
@@ -475,13 +516,32 @@ function cleanFaqItem(f) {
   };
 }
 
+function cleanPackageItems(source, productIds, allowQuantity) {
+  const seen = new Set();
+  return (Array.isArray(source) ? source : [])
+    .slice(0, 30)
+    .map((item) => {
+      const productId = cleanId(item && item.productId);
+      if (!productId || seen.has(productId)) return null;
+      if (productIds && !productIds.has(productId)) return null;
+      seen.add(productId);
+      return {
+        productId,
+        quantity: allowQuantity
+          ? Math.min(100, Math.max(1, parseInt(item && item.quantity, 10) || 1))
+          : 1,
+      };
+    })
+    .filter(Boolean);
+}
+
 function cleanPackage(input, productIds) {
   const p = input && typeof input === "object" ? input : {};
   const page = PAGES.includes(p.page) ? p.page : "inflatables";
-  const type = p.type === "bundle" ? "bundle" : "choice";
+  const type = p.type === "bundle" ? "bundle" : p.type === "mixed" ? "mixed" : "choice";
 
   let price = null;
-  if (type === "bundle") {
+  if (type !== "choice") {
     const priceProvided = p.price !== null && p.price !== undefined && p.price !== "";
     if (priceProvided) {
       price = cleanPrice(p.price);
@@ -489,38 +549,41 @@ function cleanPackage(input, productIds) {
     }
   }
 
-  const seenItems = new Set();
-  const items = (Array.isArray(p.items) ? p.items : [])
-    .slice(0, 30)
-    .map((item) => {
-      const productId = cleanId(item && item.productId);
-      if (!productId || seenItems.has(productId)) return null;
-      if (productIds && !productIds.has(productId)) return null;
-      seenItems.add(productId);
-      return {
-        productId,
-        quantity:
-          type === "choice"
-            ? 1
-            : Math.min(100, Math.max(1, parseInt(item && item.quantity, 10) || 1)),
-      };
-    })
-    .filter(Boolean);
+  let choiceSource = [];
+  if (type === "choice") {
+    choiceSource = Array.isArray(p.choices) ? p.choices : p.items;
+  } else if (type === "mixed") {
+    choiceSource = p.choices;
+  }
+
+  const includedSource = type === "choice" ? [] : p.items;
+  const choices = cleanPackageItems(choiceSource, productIds, false);
+  const items = cleanPackageItems(includedSource, productIds, true);
+
+  let featureSource = [];
+  if (Array.isArray(p.features)) featureSource = p.features;
+  else if (typeof p.features === "string") featureSource = p.features.split(/\r?\n/);
+  const features = featureSource
+    .map((feature) => cleanStr(feature, 160))
+    .filter(Boolean)
+    .slice(0, 12);
 
   return {
     id: cleanId(p.id) || "pkg-" + crypto.randomBytes(4).toString("hex"),
     name: cleanStr(p.name, 100),
     page,
     type,
-    price: type === "bundle" ? price : null,
-    oldPrice: type === "bundle" ? cleanPrice(p.oldPrice) : null,
+    price: type === "choice" ? null : price,
+    oldPrice: type === "choice" ? null : cleanPrice(p.oldPrice),
     badge: cleanStr(p.badge, 30),
     shortDesc: cleanStr(p.shortDesc, 300),
     longDesc: cleanStr(p.longDesc, 3000),
+    features,
     image: safeImage(p.image) || "images/placeholder.svg",
     position: Math.min(99, Math.max(1, parseInt(p.position, 10) || 1)),
     available: p.available !== false,
     hideItems: p.hideItems !== false,
+    choices,
     items,
   };
 }
@@ -536,7 +599,12 @@ function sanitizePackages(packages, productIds) {
         return null;
       }
     })
-    .filter((pkg) => pkg && pkg.name && pkg.items.length)
+    .filter((pkg) => {
+      if (!pkg || !pkg.name) return false;
+      if (pkg.type === "choice") return pkg.choices.length > 0;
+      if (pkg.type === "bundle") return pkg.items.length > 0;
+      return pkg.choices.length > 0 && pkg.items.length > 0;
+    })
     .map((pkg) => {
       if (seenIds.has(pkg.id)) {
         let candidate = pkg.id + "-2";
@@ -563,7 +631,7 @@ function cleanContent(raw) {
   const products = (Array.isArray(source.products) ? source.products : [])
     .slice(0, 300)
     .map(cleanProduct)
-    .filter((p) => p.name);
+    .filter((p) => p.name && !LEGACY_PRODUCT_IDS.has(p.id));
 
   const seenIds = new Set();
   products.forEach((product) => {
@@ -587,7 +655,7 @@ function cleanContent(raw) {
     .map(cleanFaqItem)
     .filter((f) => f.question);
 
-  return { version: 1, banners, products, packages, faq };
+  return { version: 1, packagesVersion: PACKAGES_VERSION, banners, products, packages, faq };
 }
 
 /* Complète un contenu sauvegardé avec les valeurs par défaut manquantes
@@ -600,6 +668,7 @@ function normalizeStored(stored) {
     const productIds = new Set(products.map((product) => product.id));
     return {
       version: 1,
+      packagesVersion: PACKAGES_VERSION,
       banners: base.banners,
       products,
       packages: sanitizePackages(base.packages, productIds),
@@ -618,7 +687,7 @@ function normalizeStored(stored) {
   let products = Array.isArray(stored.products) ? stored.products : base.products;
 
   products = products
-    .filter((p) => p && typeof p === "object")
+    .filter((p) => p && typeof p === "object" && !LEGACY_PRODUCT_IDS.has(p.id))
     .map((p) => ({
       ...p,
       id: typeof p.id === "string" ? p.id : "",
@@ -635,17 +704,35 @@ function normalizeStored(stored) {
 
   const normalizedProducts = normalizeProductList(products);
   const productIds = new Set(normalizedProducts.map((product) => product.id));
-  const packageSource = Array.isArray(stored.packages) ? stored.packages : base.packages;
+  const packageVersion = Number(stored.packagesVersion) || 0;
+  const packageSource = Array.isArray(stored.packages) ? stored.packages.slice() : base.packages.slice();
+
+  if (packageVersion < PACKAGES_VERSION) {
+    base.packages.forEach((pkg) => {
+      if (PACKAGE_MIGRATION_IDS.indexOf(pkg.id) === -1) return;
+      const index = packageSource.findIndex((entry) => entry && entry.id === pkg.id);
+      if (index === -1) {
+        packageSource.push(JSON.parse(JSON.stringify(pkg)));
+        return;
+      }
+      const existing = packageSource[index];
+      if (!Array.isArray(existing.features) || !existing.features.length) {
+        packageSource[index] = Object.assign({}, existing, {
+          features: JSON.parse(JSON.stringify(pkg.features || [])),
+        });
+      }
+    });
+  }
 
   return {
     version: 1,
+    packagesVersion: PACKAGES_VERSION,
     banners,
     products: normalizedProducts,
     packages: sanitizePackages(packageSource, productIds),
     faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
   };
 }
-
 /* Page + positions 1..N par page (ordre ligne par ligne) */
 function normalizeProductList(products) {
   const withPage = products.map((p) => ({
@@ -842,7 +929,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === "GET") {
     try {
       const stored = await store.get("content.json", { type: "json" });
-      const packagesWereStored = Boolean(stored && Array.isArray(stored.packages));
+      const packagesNeedMigration = !stored || !Array.isArray(stored.packages) || (Number(stored.packagesVersion) || 0) < PACKAGES_VERSION;
       const content = normalizeStored(stored);
       const currentSnapshot = buildDefaultSnapshot();
       const previousSnapshot = await readDefaultsSnapshot(store);
@@ -854,7 +941,7 @@ exports.handler = async (event) => {
       content.products = sync.products;
 
       if (
-        !packagesWereStored ||
+        packagesNeedMigration ||
         !previousSnapshot ||
         previousSnapshot.hash !== currentSnapshot.hash ||
         sync.changed

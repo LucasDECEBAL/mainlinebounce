@@ -52,38 +52,6 @@ const DEFAULT_CONTENT = {
   ],
   products: [
     {
-      id: "combo-special-1",
-      name: "Magic Castle + SuperHero Bundle",
-      category: "kids",
-      price: 500,
-      oldPrice: 675,
-      badge: "LIMITED TIME",
-      shortDesc: "Two inflatables in one bundle — double the fun.",
-      longDesc: "Get TWO amazing inflatables together! Combine our classic Magic Castle with the action-packed Super Hero Duo Combo. Double the fun, double the memories for your party!",
-      dimension: "",
-      image: "images/magic-castle-superhero-combo.png",
-      position: 1,
-      available: true,
-      url: "combo-special-1.html",
-      addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
-    },
-    {
-      id: "combo-special-2",
-      name: "Party Package",
-      category: "corporate",
-      price: 550,
-      oldPrice: 850,
-      badge: "LIMITED TIME",
-      shortDesc: "Inflatable of your choice + tables, chairs, tent & mister.",
-      longDesc: "The ultimate party solution! Choose Magic Castle or Super Hero Duo Combo and get it bundled with 3 tables, 24 chairs, 1 tent and a mister water system. Everything you need for an unforgettable celebration.",
-      dimension: "",
-      image: "images/magic-castle-or-superhero-combo.png",
-      position: 1,
-      available: true,
-      url: "combo-special-2.html",
-      addons: ["misting-fan", "generator", "tent", "white-folding-tables", "white-folding-chairs", "foam-machine"],
-    },
-    {
       id: "dolphin-slide",
       name: "Water Slide",
       category: "teen",
@@ -199,9 +167,37 @@ const DEFAULT_CONTENT = {
     { id: "photo-booth-rental", name: "Photo Booth Rental", page: "photo-booths", price: null, oldPrice: null, badge: "", shortDesc: "Photo booth with unlimited prints, fun props and a friendly attendant.", longDesc: "Make your event unforgettable with our photo booth rental. Includes unlimited prints, a wide selection of props and a friendly attendant. Perfect for birthdays, weddings, corporate events and more. Call us for a custom quote.", dimension: "", image: "images/photo-booths.webp", position: 1, available: true, url: "", addons: [] },
   ],
   packages: [
-    { id: "silent-disco-package", name: "Silent Disco", page: "silent-disco", type: "choice", price: null, oldPrice: null, badge: "", shortDesc: "Dance floor included. Choose 10, 30 or 50 wireless headsets.", longDesc: "Perfect for teen parties, birthdays and corporate events, indoors or outdoors. Add a dance floor and up to 50 wireless headsets.", image: "images/silent-disco.png", position: 2, available: true, hideItems: true, items: [{ productId: "silent-disco-10", quantity: 1 }, { productId: "silent-disco-30", quantity: 1 }, { productId: "silent-disco-50", quantity: 1 }] }
-  ],
-  faq: [
+    {
+      id: "silent-disco-package", name: "Silent Disco", page: "silent-disco", type: "choice",
+      price: null, oldPrice: null, badge: "",
+      shortDesc: "Dance floor included. Choose 10, 30 or 50 wireless headsets.",
+      longDesc: "Perfect for teen parties, birthdays and corporate events, indoors or outdoors. Add a dance floor and up to 50 wireless headsets.",
+      features: ["Choose 10, 30 or 50 wireless headsets", "Dance floor included", "Perfect for teen parties, birthdays and corporate events"],
+      image: "images/silent-disco.png", position: 2, available: true, hideItems: true,
+      choices: [{ productId: "silent-disco-10", quantity: 1 }, { productId: "silent-disco-30", quantity: 1 }, { productId: "silent-disco-50", quantity: 1 }],
+      items: []
+    },
+    {
+      id: "magic-castle-superhero-package", name: "Magic Castle + SuperHero Bundle", page: "inflatables", type: "bundle",
+      price: 500, oldPrice: 675, badge: "LIMITED TIME",
+      shortDesc: "Two inflatables in one bundle - double the fun.",
+      longDesc: "Get TWO amazing inflatables together! Combine our classic Magic Castle with the action-packed Super Hero Duo Combo. Double the fun, double the memories for your party!",
+      features: ["2 inflatables in one package", "Magic Castle + Super Hero Duo Combo included", "Perfect for larger events", "Save $175 compared to individual rentals", "Delivery available"],
+      image: "images/magic-castle-superhero-combo.png", position: 1, available: true, hideItems: false,
+      choices: [],
+      items: [{ productId: "magic-castle", quantity: 1 }, { productId: "superhero-combo", quantity: 1 }]
+    },
+    {
+      id: "party-package", name: "Party Package", page: "inflatables", type: "mixed",
+      price: 550, oldPrice: 850, badge: "GRAND OPENING PRICE",
+      shortDesc: "Your choice of inflatable + tables, chairs, tent & mister.",
+      longDesc: "The ultimate party solution! Choose your favorite inflatable (Magic Castle OR Super Hero Duo Combo) and get it bundled with 3 tables, 24 chairs, 1 tent, and a mister water system. Everything you need for an unforgettable celebration!",
+      features: ["Choose Magic Castle OR Super Hero Duo Combo", "3 tables included", "24 chairs included", "1 large tent included", "Misting Fan included", "Perfect for large events", "Save $300 on this package!"],
+      image: "images/magic-castle-or-superhero-combo.png", position: 1, available: true, hideItems: false,
+      choices: [{ productId: "magic-castle", quantity: 1 }, { productId: "superhero-combo", quantity: 1 }],
+      items: [{ productId: "white-folding-tables", quantity: 3 }, { productId: "white-folding-chairs", quantity: 24 }, { productId: "tent", quantity: 1 }, { productId: "misting-fan", quantity: 1 }]
+    }
+  ],  faq: [
     {
       id: "booking-advance",
       question: "How far in advance should I book?",
@@ -365,7 +361,20 @@ function silentDiscoCardHTML(variants) {
 }
 
 /* ---------- Packages ---------- */
+function packageChoices(pkg, content) {
+  const products = content.products || [];
+  const source = Array.isArray(pkg.choices) && pkg.choices.length
+    ? pkg.choices
+    : (pkg.type === "choice" ? (pkg.items || []) : []);
+  return source.map(function (item) {
+    const product = products.find(function (p) { return p.id === item.productId; });
+    if (!product) return null;
+    return { product, quantity: 1 };
+  }).filter(Boolean);
+}
+
 function packageEntries(pkg, content) {
+  if (pkg.type === "choice") return [];
   const products = content.products || [];
   return (pkg.items || []).map(function (item) {
     const product = products.find(function (p) { return p.id === item.productId; });
@@ -379,7 +388,7 @@ function packageEntries(pkg, content) {
 
 function packagePriceInfo(pkg, content) {
   if (pkg.type === "choice") {
-    const prices = packageEntries(pkg, content)
+    const prices = packageChoices(pkg, content)
       .filter(function (entry) { return entry.product.available !== false; })
       .map(function (entry) { return Number(entry.product.price); })
       .filter(function (n) { return Number.isFinite(n) && n > 0; });
@@ -412,24 +421,31 @@ function packageOptionLabel(product, pkg) {
   const raw = String(product && product.name || "");
   const prefix = String(pkg && pkg.name || "");
   if (prefix && raw.toLowerCase().indexOf(prefix.toLowerCase()) === 0) {
-    const rest = raw.slice(prefix.length).replace(/^[\s\-–—:]+/, "");
+    const rest = raw.slice(prefix.length).replace(/^[\s\-\u2013\u2014:]+/, "");
     if (rest) return rest;
   }
   return raw;
 }
 
 function packageCardHTML(pkg, content) {
+  const choices = packageChoices(pkg, content);
   const entries = packageEntries(pkg, content);
-  const availableEntries = entries.filter(function (entry) {
+  const availableChoices = choices.filter(function (entry) {
     return entry.product.available !== false;
   });
   const info = packagePriceInfo(pkg, content);
-  const available = pkg.available !== false &&
-    (pkg.type === "choice" ? availableEntries.length > 0 : true);
+  const needsChoice = pkg.type === "choice" || pkg.type === "mixed";
+  const available = pkg.available !== false && (!needsChoice || availableChoices.length > 0);
   const image = safeImage(pkg.image);
-  const count = pkg.type === "choice"
-    ? availableEntries.length + " option" + (availableEntries.length === 1 ? "" : "s")
-    : entries.length + " item" + (entries.length === 1 ? "" : "s") + " included";
+  let count;
+  if (pkg.type === "mixed") {
+    count = availableChoices.length + " option" + (availableChoices.length === 1 ? "" : "s") +
+      " + " + entries.length + " item" + (entries.length === 1 ? "" : "s");
+  } else if (pkg.type === "choice") {
+    count = availableChoices.length + " option" + (availableChoices.length === 1 ? "" : "s");
+  } else {
+    count = entries.length + " item" + (entries.length === 1 ? "" : "s") + " included";
+  }
 
   let priceHTML;
   if (info.price === null) {
@@ -445,7 +461,7 @@ function packageCardHTML(pkg, content) {
   let action;
   if (!available) {
     action = '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
-  } else if (pkg.type === "choice") {
+  } else if (needsChoice) {
     action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-pink btn-sm">Choose package</a>';
   } else {
     action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-outline btn-sm">View Package</a>';
@@ -472,7 +488,6 @@ function packageCardHTML(pkg, content) {
     "</article>"
   );
 }
-
 /* ---------- Loading ---------- */
 async function loadSiteContent() {
   if (cachedContent) return cachedContent;
@@ -523,11 +538,12 @@ function normalizePackages(content) {
   content.packages = (Array.isArray(content.packages) ? content.packages : []).map(function (pkg) {
     return Object.assign({}, pkg, {
       page: PAGES.indexOf(pkg.page) !== -1 ? pkg.page : "inflatables",
+      choices: Array.isArray(pkg.choices) ? pkg.choices : [],
       items: Array.isArray(pkg.items) ? pkg.items : [],
+      features: Array.isArray(pkg.features) ? pkg.features : [],
     });
   });
 }
-
 /* ---------- Banners ---------- */
 function renderBanner(key, content) {
   const el = document.querySelector('[data-banner="' + key + '"]');
@@ -635,7 +651,7 @@ function renderCatalog(root, content) {
 
   packages.forEach(function (pkg) {
     if (pkg.hideItems === false) return;
-    (pkg.items || []).forEach(function (item) {
+    (pkg.choices || []).concat(pkg.items || []).forEach(function (item) {
       const product = (content.products || []).find(function (p) {
         return p.id === item.productId;
       });
@@ -644,7 +660,6 @@ function renderCatalog(root, content) {
       }
     });
   });
-
   const items = (content.products || [])
     .filter(function (p) { return (p.page || "inflatables") === page; })
     .filter(function (p) { return !hiddenIds.has(p.id); })
@@ -882,17 +897,47 @@ function renderProductPage(root, content, product) {
   bindAddButtons(root);
 }
 
-function renderPackagePage(root, content, pkg, initialId) {
-  const entries = packageEntries(pkg, content);
-  const pageLink = PAGE_LINKS[pkg.page] || PAGE_LINKS.inflatables;
+function packageDisplayImage(pkg, choice) {
   const packageImage = safeImage(pkg.image);
-  const shortDesc = pkg.shortDesc || "";
-  const longDesc = pkg.longDesc && pkg.longDesc !== shortDesc ? pkg.longDesc : "";
-  const badge = pkg.badge
-    ? '<span class="promo-badge">' + esc(pkg.badge) + "</span>"
-    : "";
+  if (!choice) return packageImage;
+  const choiceImage = safeImage(choice.product.image);
+  return choiceImage && choiceImage !== "images/placeholder.svg" ? choiceImage : packageImage;
+}
 
-  if (!entries.length) {
+function packageFeatureList(pkg, choices, included) {
+  if (Array.isArray(pkg.features) && pkg.features.length) return pkg.features;
+  const features = [];
+  if (choices.length) {
+    features.push("Choose " + choices.map(function (entry) {
+      return packageOptionLabel(entry.product, pkg);
+    }).join(" OR "));
+  }
+  included.forEach(function (entry) {
+    features.push((entry.quantity > 1 ? entry.quantity + "x " : "") + entry.product.name + " included");
+  });
+  if (pkg.type !== "choice" && pkg.oldPrice && pkg.price && Number(pkg.oldPrice) > Number(pkg.price)) {
+    features.push("Save " + money(Number(pkg.oldPrice) - Number(pkg.price)) + " on this package!");
+  }
+  return features;
+}
+
+function renderPackagePage(root, content, pkg, initialId) {
+  const pageLink = PAGE_LINKS[pkg.page] || PAGE_LINKS.inflatables;
+  const choices = packageChoices(pkg, content);
+  const included = packageEntries(pkg, content);
+  const fixedPrice = pkg.type !== "choice";
+  const availableChoices = choices.filter(function (entry) {
+    return entry.product.available !== false;
+  });
+  const initialChoice =
+    choices.find(function (entry) {
+      return entry.product.id === initialId && entry.product.available !== false;
+    }) ||
+    availableChoices[0] ||
+    choices[0] ||
+    null;
+
+  if (!choices.length && !included.length) {
     root.innerHTML =
       '<section class="products-section"><div class="container">' +
         '<div class="cart-empty" style="display:block; text-align:center;">' +
@@ -903,169 +948,166 @@ function renderPackagePage(root, content, pkg, initialId) {
     return;
   }
 
-  if (pkg.type === "choice") {
-    const availableEntries = entries.filter(function (entry) {
-      return entry.product.available !== false;
-    });
-    const initialEntry =
-      entries.find(function (entry) {
-        return entry.product.id === initialId && entry.product.available !== false;
-      }) ||
-      availableEntries[0] ||
-      entries[0];
-    const initial = initialEntry.product;
+  const initialImage = packageDisplayImage(pkg, initialChoice);
+  const info = packagePriceInfo(pkg, content);
+  const features = packageFeatureList(pkg, choices, included);
 
-    function displayImage(product) {
-      const productImage = safeImage(product && product.image);
-      return productImage && productImage !== "images/placeholder.svg"
-        ? productImage
-        : packageImage;
+  function currentPriceHTML() {
+    if (!fixedPrice && initialChoice) {
+      return initialChoice.product.price != null
+        ? money(initialChoice.product.price)
+        : "Call for price";
     }
+    if (info.price === null) return "Call for price";
+    return (info.oldPrice
+      ? '<span class="strike">' + money(info.oldPrice) + "</span>"
+      : "") + money(info.price);
+  }
 
-    function actionHTML(product, image) {
-      if (pkg.available === false || product.available === false) {
+  function actionHTML(choice) {
+    if (pkg.available === false) {
+      return '<a href="tel:2674053125" class="btn btn-pink">Currently unavailable - call us</a>';
+    }
+    if (pkg.type === "choice") {
+      if (!choice || choice.product.available === false) {
         return '<a href="tel:2674053125" class="btn btn-pink">Currently unavailable - call us</a>';
       }
-      if (product.price === null || product.price === undefined || product.price === "" || Number(product.price) <= 0) {
+      if (choice.product.price === null || choice.product.price === undefined || choice.product.price === "" || Number(choice.product.price) <= 0) {
         return '<a href="tel:2674053125" class="btn btn-pink">Call for price</a>';
       }
       return '<button class="btn btn-pink" id="pkg-add" data-add-to-cart' +
-        ' data-id="' + esc(product.id) +
-        '" data-name="' + esc(product.name) +
-        '" data-price="' + esc(product.price) +
-        '" data-image="' + esc(image) + '">Add to cart</button>' +
+        ' data-id="' + esc(choice.product.id) +
+        '" data-name="' + esc(choice.product.name) +
+        '" data-price="' + esc(choice.product.price) +
+        '" data-image="' + esc(packageDisplayImage(pkg, choice)) + '">Add to cart</button>' +
         '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
     }
 
-    const optionsHTML = entries.map(function (entry) {
-      const product = entry.product;
-      const disabled = product.available === false;
-      return (
-        '<label class="variant-option' + (disabled ? " is-disabled" : "") + '">' +
-          '<input type="radio" name="pkg-option" value="' + esc(product.id) + '"' +
-            (product.id === initial.id ? " checked" : "") +
-            (disabled ? " disabled" : "") + ">" +
-          '<span class="variant-label">' + esc(packageOptionLabel(product, pkg)) + "</span>" +
-          '<span class="variant-price">' + (product.price != null ? money(product.price) : "Call") + "</span>" +
-        "</label>"
-      );
-    }).join("");
+    if (info.price === null) {
+      return '<a href="tel:2674053125" class="btn btn-pink">Call for price</a>' +
+        '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
+    }
 
-    const initialImage = displayImage(initial);
-    const initialPrice = initial.price != null ? money(initial.price) : "Call for price";
+    if (pkg.type === "mixed") {
+      if (!choice || choice.product.available === false) {
+        return '<a href="tel:2674053125" class="btn btn-pink">Choose an option - call us</a>';
+      }
+      return '<button class="btn btn-pink" id="pkg-add" data-add-to-cart' +
+        ' data-id="' + esc(pkg.id + "::" + choice.product.id) +
+        '" data-name="' + esc(pkg.name + " - " + choice.product.name) +
+        '" data-price="' + esc(info.price) +
+        '" data-image="' + esc(packageDisplayImage(pkg, choice)) + '">Add package to cart</button>' +
+        '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
+    }
 
-    root.innerHTML =
-      '<section class="product-detail">' +
-        '<div class="container">' +
-          '<div class="product-detail-inner">' +
-            '<div class="detail-image-card"><img id="pkg-image" src="' + esc(initialImage) + '" alt="' + esc(pkg.name) + '" /></div>' +
-            '<div class="detail-info-card">' +
-              "<h1>" + esc(pkg.name) + "</h1>" +
-              badge +
-              (pkg.available === false ? '<span class="promo-badge badge-unavailable">CURRENTLY UNAVAILABLE</span>' : "") +
-              '<p class="detail-desc">' + esc(shortDesc) + "</p>" +
-              (longDesc ? '<p class="detail-long">' + esc(longDesc) + "</p>" : "") +
-              '<div class="variant-picker">' +
-                '<h3 class="variant-title">Choose an option</h3>' +
-                '<div class="variant-options">' + optionsHTML + "</div>" +
-              "</div>" +
-              '<span class="price-tag" id="pkg-price">' + initialPrice + "</span>" +
-              '<div class="detail-buttons" id="pkg-actions">' + actionHTML(initial, initialImage) + "</div>" +
-              '<a href="' + esc(pageLink.href) + '" class="btn btn-outline btn-sm">← Back to ' + esc(pageLink.label) + "</a>" +
-            "</div>" +
-          "</div>" +
-        "</div>" +
-      "</section>";
-
-    root.querySelectorAll('input[name="pkg-option"]').forEach(function (radio) {
-      radio.addEventListener("change", function () {
-        const chosen = entries.find(function (entry) {
-          return entry.product.id === radio.value;
-        });
-        if (!chosen) return;
-        const product = chosen.product;
-        const image = displayImage(product);
-
-        const imageEl = root.querySelector("#pkg-image");
-        if (imageEl) {
-          imageEl.src = image;
-          imageEl.alt = product.name;
-        }
-
-        const priceEl = root.querySelector("#pkg-price");
-        if (priceEl) {
-          priceEl.textContent = product.price != null ? money(product.price) : "Call for price";
-        }
-
-        const actions = root.querySelector("#pkg-actions");
-        if (actions) actions.innerHTML = actionHTML(product, image);
-
-        const url = new URL(window.location.href);
-        url.searchParams.set("package", pkg.id);
-        url.searchParams.set("id", product.id);
-        history.replaceState(null, "", url);
-
-        bindAddButtons(root);
-      });
-    });
-
-    bindAddButtons(root);
-    return;
-  }
-
-  const info = packagePriceInfo(pkg, content);
-  const available = pkg.available !== false;
-  const itemsHTML = entries.map(function (entry) {
-    return (
-      "<li>" +
-        "<span>" + esc(entry.product.name) + "</span>" +
-        "<span>x" + entry.quantity + "</span>" +
-      "</li>"
-    );
-  }).join("");
-
-  let priceHTML;
-  if (info.price === null) {
-    priceHTML = "Call for price";
-  } else if (info.oldPrice) {
-    priceHTML = '<span class="price-old">' + money(info.oldPrice) + '</span><span class="price-new">' + money(info.price) + "</span>";
-  } else {
-    priceHTML = money(info.price);
-  }
-
-  let actions;
-  if (!available) {
-    actions = '<a href="tel:2674053125" class="btn btn-pink">Currently unavailable - call us</a>';
-  } else if (info.price === null) {
-    actions = '<a href="tel:2674053125" class="btn btn-pink">Call for price</a>';
-  } else {
-    actions = '<button class="btn btn-pink" data-add-to-cart' +
+    return '<button class="btn btn-pink" id="pkg-add" data-add-to-cart' +
       ' data-id="' + esc(pkg.id) +
       '" data-name="' + esc(pkg.name) +
       '" data-price="' + esc(info.price) +
-      '" data-image="' + esc(packageImage) + '">Add package to cart</button>' +
+      '" data-image="' + esc(packageDisplayImage(pkg, null)) + '">Add package to cart</button>' +
       '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
   }
+
+  const choicesHTML = choices.length
+    ? '<div class="package-choice-box">' +
+        '<h3>Select your option:</h3>' +
+        '<div class="package-choice-options">' +
+          choices.map(function (entry) {
+            const product = entry.product;
+            const disabled = product.available === false;
+            const priceLabel = pkg.type === "mixed"
+              ? "+$0"
+              : product.price != null
+                ? money(product.price)
+                : "Call";
+            return (
+              '<label class="package-choice-option' + (disabled ? " is-disabled" : "") + '">' +
+                '<input type="radio" name="pkg-option" value="' + esc(product.id) + '"' +
+                  (initialChoice && product.id === initialChoice.product.id ? " checked" : "") +
+                  (disabled ? " disabled" : "") + ">" +
+                '<span class="package-choice-label">' + esc(packageOptionLabel(product, pkg)) + "</span>" +
+                '<span class="package-choice-price">' + esc(priceLabel) + "</span>" +
+              "</label>"
+            );
+          }).join("") +
+        "</div>" +
+      "</div>"
+    : "";
+
+  const includedHTML = included.length
+    ? '<div class="size-info">' +
+        "<h3>What&rsquo;s Included</h3>" +
+        included.map(function (entry) {
+          return "<p>✅ " + esc(entry.quantity > 1 ? entry.quantity + "x " : "") + esc(entry.product.name) + "</p>";
+        }).join("") +
+      "</div>"
+    : "";
+
+  const featuresHTML = features.length
+    ? '<ul class="detail-features">' +
+        features.map(function (feature) { return "<li>" + esc(feature) + "</li>"; }).join("") +
+      "</ul>"
+    : "";
+
+  const promoHead = pkg.badge || (pkg.type === "choice" ? "PACKAGE DEAL" : "LIMITED TIME OFFER");
+  const promoNote = pkg.type === "choice"
+    ? "Choose your option and add it to your cart."
+    : "Everything included at one price.";
 
   root.innerHTML =
     '<section class="product-detail">' +
       '<div class="container">' +
         '<div class="product-detail-inner">' +
-          '<div class="detail-image-card"><img src="' + esc(packageImage) + '" alt="' + esc(pkg.name) + '" /></div>' +
+          '<div class="detail-image-card"><img id="pkg-image" src="' + esc(initialImage) + '" alt="' + esc(pkg.name) + '" /></div>' +
           '<div class="detail-info-card">' +
             "<h1>" + esc(pkg.name) + "</h1>" +
-            badge +
-            (pkg.available === false ? '<span class="promo-badge badge-unavailable">CURRENTLY UNAVAILABLE</span>' : "") +
-            '<p class="detail-desc">' + esc(shortDesc) + "</p>" +
-            (longDesc ? '<p class="detail-long">' + esc(longDesc) + "</p>" : "") +
-            '<div class="package-includes"><h3>Included in this package</h3><ul>' + itemsHTML + "</ul></div>" +
-            '<span class="price-tag">' + priceHTML + "</span>" +
-            '<div class="detail-buttons">' + actions + "</div>" +
+            '<p class="detail-desc">' + esc(pkg.shortDesc || "") + "</p>" +
+            (pkg.longDesc ? '<p class="detail-long">' + esc(pkg.longDesc) + "</p>" : "") +
+            featuresHTML +
+            '<div class="promo-detail">' +
+              '<div class="promo-detail-head">' + esc(promoHead) + "</div>" +
+              '<div class="promo-detail-price" id="pkg-price"><span id="pkg-price-value">' + currentPriceHTML() + "</span></div>" +
+              '<p style="font-size: 0.9rem; margin: 0;">' + esc(promoNote) + "</p>" +
+            "</div>" +
+            choicesHTML +
+            includedHTML +
+            '<div class="detail-buttons" id="pkg-actions">' + actionHTML(initialChoice) + "</div>" +
             '<a href="' + esc(pageLink.href) + '" class="btn btn-outline btn-sm">← Back to ' + esc(pageLink.label) + "</a>" +
           "</div>" +
         "</div>" +
       "</div>" +
     "</section>";
+
+  root.querySelectorAll('input[name="pkg-option"]').forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      const chosen = choices.find(function (entry) { return entry.product.id === radio.value; });
+      if (!chosen) return;
+
+      const image = packageDisplayImage(pkg, chosen);
+      const imageEl = root.querySelector("#pkg-image");
+      if (imageEl) {
+        imageEl.src = image;
+        imageEl.alt = chosen.product.name;
+      }
+
+      if (pkg.type === "choice") {
+        const priceEl = root.querySelector("#pkg-price-value");
+        if (priceEl) {
+          priceEl.textContent = chosen.product.price != null ? money(chosen.product.price) : "Call for price";
+        }
+      }
+
+      const actions = root.querySelector("#pkg-actions");
+      if (actions) actions.innerHTML = actionHTML(chosen);
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("package", pkg.id);
+      url.searchParams.set("id", chosen.product.id);
+      history.replaceState(null, "", url);
+
+      bindAddButtons(root);
+    });
+  });
 
   bindAddButtons(root);
 }

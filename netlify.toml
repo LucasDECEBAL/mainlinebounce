@@ -34,6 +34,18 @@
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 
+# Legacy combo pages now live in the CMS as packages.
+[[redirects]]
+  from = "/combo-special-1.html"
+  to = "/product.html?package=magic-castle-superhero-package"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/combo-special-2.html"
+  to = "/product.html?package=party-package"
+  status = 301
+  force = true
 # Never serve server-side sources or package metadata.
 [[redirects]]
   from = "/netlify/*"

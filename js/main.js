@@ -24,7 +24,7 @@ function getCart() {
     return raw
       .filter(item => item && typeof item === 'object')
       .map(item => ({
-        id: String(item.id == null ? '' : item.id).slice(0, 60),
+        id: String(item.id == null ? '' : item.id).slice(0, 140),
         name: String(item.name == null ? '' : item.name).slice(0, 120),
         price: Number.isFinite(Number(item.price)) && Number(item.price) >= 0
           ? Number(item.price)
@@ -347,8 +347,8 @@ function initPartyPackage() {
     const selectedImage = selectedRadio.getAttribute('data-image'); // L'IMAGE CORRECTE!
     
     addToCart({
-      id: 'combo-special-2-' + selectedInflatable,  // ID unique par choix
-      name: `Party Package (${inflatableName})`,
+      id: 'party-package::' + selectedInflatable,
+      name: `Party Package - ${inflatableName}`,
       price: 550,
       image: selectedImage  // ✅ IMAGE CORRECTE
     });

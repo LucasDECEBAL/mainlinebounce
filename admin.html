@@ -6,7 +6,7 @@
   <title>Admin - Main Line Bounce</title>
 
   <!-- ✅ Site theme -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 
   <!-- SheetJS : génération du fichier Excel -->
   <script src="js/vendor/xlsx.full.min.js"></script>
@@ -274,7 +274,7 @@
   .addon-check input{ width: auto; }
   .addon-check.disabled{ opacity: 0.45; }
 
-  #pkg-items{
+  #pkg-choices, #pkg-items{
     display: flex;
     flex-direction: column;
     gap: 7px;
@@ -566,6 +566,7 @@
           <p style="font-size:0.8rem;color:var(--color-gray);margin:0 0 14px;">
             Group existing products into a package. Choice = the customer picks one option
             (like Silent Disco). Bundle = all included products are sold together at the package price.
+            Choice + included = the customer picks one option and the other items are included (like Party Package).
           </p>
           <div id="packagesTable"></div>
           <button class="block-btn" id="newPackageBtn">+ New package</button>
@@ -590,13 +591,15 @@
           <select id="pkg-type">
             <option value="choice">Choice - customer picks one option</option>
             <option value="bundle">Bundle - all items included</option>
+            <option value="mixed">Choice + included items</option>
           </select>
 
           <div id="pkg-price-row">
             <label>Package price ($)</label>
             <input type="number" id="pkg-price" min="0" step="1">
             <p style="font-size:0.8rem; color:var(--color-gray); margin:4px 0 0;">
-              For bundles only. Leave empty for "Call for price". Choice packages use each option's price.
+              For bundles and choice + included packages. Leave empty for "Call for price".
+              Choice-only packages use each option's price.
             </p>
 
             <label>Old price ($) - optional</label>
@@ -631,9 +634,20 @@
             <span>Hide included products from this page's catalog</span>
           </div>
 
-          <label>Products in this package</label>
-          <div id="pkg-items"></div>
-          <div class="status" id="pkg-itemsStatus"></div>
+          <label>Features (one per line)</label>
+          <textarea id="pkg-features" rows="5" maxlength="2000" placeholder="Choose Magic Castle OR Super Hero Duo Combo&#10;3 tables included&#10;24 chairs included"></textarea>
+
+          <div id="pkg-choice-section">
+            <label>Choice options (customer picks one)</label>
+            <div id="pkg-choices"></div>
+            <div class="status" id="pkg-choicesStatus"></div>
+          </div>
+
+          <div id="pkg-included-section">
+            <label>Included items (all included)</label>
+            <div id="pkg-items"></div>
+            <div class="status" id="pkg-itemsStatus"></div>
+          </div>
 
           <div class="form-actions">
             <button class="block-btn" id="savePackageBtn" style="margin-top:8px;">Save package</button>
@@ -712,7 +726,7 @@
           <input type="text" id="a-badge" maxlength="30" placeholder="LIMITED TIME">
 
           <label>Custom link (optional)</label>
-          <input type="text" id="a-url" maxlength="300" placeholder="e.g. combo-special-2.html (otherwise auto product page)">
+          <input type="text" id="a-url" maxlength="300" placeholder="e.g. inflatables.html (otherwise auto product page)">
 
           <div class="check-row">
             <input type="checkbox" id="a-available" checked>
@@ -1052,13 +1066,24 @@
     let articleFilterPage = "all";
     let showPackagedProducts = false;
 
+    function packageChoices(pkg) {
+      if (!pkg) return [];
+      if (Array.isArray(pkg.choices) && pkg.choices.length) return pkg.choices;
+      return pkg.type === "choice" ? (pkg.items || []) : [];
+    }
+
+    function packageIncluded(pkg) {
+      if (!pkg || pkg.type === "choice") return [];
+      return pkg.items || [];
+    }
+
     function getPackagedProductIdsForPage(page) {
       const ids = new Set();
       (content.packages || []).forEach(function (pkg) {
         if (pkg.hideItems === false) return;
         const packagePage = pkg.page || "inflatables";
         if (page && packagePage !== page) return;
-        (pkg.items || []).forEach(function (item) {
+        packageChoices(pkg).concat(packageIncluded(pkg)).forEach(function (item) {
           const product = (content.products || []).find(function (p) {
             return p.id === item.productId;
           });
@@ -1072,7 +1097,7 @@
 
     function packagePriceLabel(pkg) {
       if (pkg.type === "choice") {
-        const prices = (pkg.items || [])
+        const prices = packageChoices(pkg)
           .map(function (item) {
             const product = (content.products || []).find(function (p) {
               return p.id === item.productId;
@@ -1101,13 +1126,19 @@
       }
 
       const rows = packages.map(function (pkg) {
+        const typeLabel = pkg.type === "bundle"
+          ? "Bundle"
+          : pkg.type === "mixed"
+            ? "Choice + included"
+            : "Choice";
+        const count = packageChoices(pkg).length + packageIncluded(pkg).length;
         return (
           "<tr>" +
             "<td>" + (pkg.position || 1) + "</td>" +
             "<td><strong>" + escapeHtml(pkg.name) + "</strong></td>" +
             "<td>" + (PAGE_LABELS[pkg.page] || PAGE_LABELS.inflatables) + "</td>" +
-            "<td>" + (pkg.type === "bundle" ? "Bundle" : "Choice") + "</td>" +
-            "<td>" + (pkg.items || []).length + "</td>" +
+            "<td>" + typeLabel + "</td>" +
+            "<td>" + count + "</td>" +
             "<td>" + escapeHtml(packagePriceLabel(pkg)) + "</td>" +
             "<td>" + (pkg.available ? '<span class="tag">Available</span>' : '<span class="tag off">Unavailable</span>') + "</td>" +
             '<td style="white-space:nowrap;">' +
@@ -1148,8 +1179,8 @@
       });
     }
 
-    function renderPackageItemPicker(selectedItems) {
-      const root = document.getElementById("pkg-items");
+    function renderPackageItemPicker(selectedItems, rootId, withQty) {
+      const root = document.getElementById(rootId);
       if (!root) return;
 
       const selected = {};
@@ -1176,7 +1207,7 @@
             '<label class="pkg-item">' +
               '<input type="checkbox" class="pkg-item-check" value="' + escapeAttr(product.id) + '"' + (checked ? " checked" : "") + ">" +
               "<span>" + escapeHtml(product.name) + (product.price == null ? "" : " - $" + product.price) + "</span>" +
-              '<input type="number" class="pkg-qty" min="1" max="100" value="' + quantity + '">' +
+              (withQty ? '<input type="number" class="pkg-qty" min="1" max="100" value="' + quantity + '">' : "") +
             "</label>";
         });
       });
@@ -1189,28 +1220,39 @@
       root.querySelectorAll(".pkg-qty").forEach(function (input) {
         input.addEventListener("input", updatePackageItemState);
       });
-      updatePackageItemState();
+    }
+
+    function renderPackagePickers(pkg) {
+      renderPackageItemPicker(packageChoices(pkg), "pkg-choices", false);
+      renderPackageItemPicker(packageIncluded(pkg), "pkg-items", true);
     }
 
     function updatePackageItemState() {
       const type = document.getElementById("pkg-type").value;
-      const boxes = Array.from(document.querySelectorAll("#pkg-items .pkg-item-check"));
-      const checked = boxes.filter(function (box) { return box.checked; }).length;
+      const choiceBoxes = Array.from(document.querySelectorAll("#pkg-choices .pkg-item-check"));
+      const itemBoxes = Array.from(document.querySelectorAll("#pkg-items .pkg-item-check"));
+      const choiceCount = choiceBoxes.filter(function (box) { return box.checked; }).length;
 
-      boxes.forEach(function (box) {
+      itemBoxes.forEach(function (box) {
         const row = box.closest(".pkg-item");
         const qty = row.querySelector(".pkg-qty");
-        qty.style.display = box.checked && type === "bundle" ? "block" : "none";
-        qty.disabled = !box.checked || type !== "bundle";
+        if (!qty) return;
+        qty.style.display = box.checked && type !== "choice" ? "block" : "none";
+        qty.disabled = !box.checked || type === "choice";
       });
 
+      const itemCount = itemBoxes.filter(function (box) { return box.checked; }).length;
+      document.getElementById("pkg-choicesStatus").textContent =
+        choiceCount + " option" + (choiceCount === 1 ? "" : "s") + " selected";
       document.getElementById("pkg-itemsStatus").textContent =
-        checked + " item" + (checked === 1 ? "" : "s") + " selected";
+        itemCount + " item" + (itemCount === 1 ? "" : "s") + " included";
     }
 
     function updatePackageTypeUI() {
       const type = document.getElementById("pkg-type").value;
-      document.getElementById("pkg-price-row").style.display = type === "bundle" ? "block" : "none";
+      document.getElementById("pkg-price-row").style.display = type === "choice" ? "none" : "block";
+      document.getElementById("pkg-choice-section").style.display = type === "bundle" ? "none" : "block";
+      document.getElementById("pkg-included-section").style.display = type === "choice" ? "none" : "block";
       updatePackageItemState();
     }
 
@@ -1226,7 +1268,8 @@
       document.getElementById("pkg-page").value = pkg
         ? (pkg.page || "inflatables")
         : (articleFilterPage === "all" ? "inflatables" : articleFilterPage);
-      document.getElementById("pkg-type").value = pkg && pkg.type === "bundle" ? "bundle" : "choice";
+      const type = pkg && (pkg.type === "bundle" || pkg.type === "mixed") ? pkg.type : "choice";
+      document.getElementById("pkg-type").value = type;
       document.getElementById("pkg-price").value = pkg && pkg.price != null ? pkg.price : "";
       document.getElementById("pkg-oldprice").value = pkg && pkg.oldPrice != null ? pkg.oldPrice : "";
       document.getElementById("pkg-position").value = pkg
@@ -1234,13 +1277,14 @@
         : Math.max(1, (content.packages || []).filter(function (p) { return p.page === document.getElementById("pkg-page").value; }).length + 1);
       document.getElementById("pkg-short").value = pkg ? pkg.shortDesc || "" : "";
       document.getElementById("pkg-long").value = pkg ? pkg.longDesc || "" : "";
+      document.getElementById("pkg-features").value = pkg && Array.isArray(pkg.features) ? pkg.features.join("\n") : "";
       document.getElementById("pkg-image").value = pkg ? pkg.image || "images/placeholder.svg" : "images/placeholder.svg";
       document.getElementById("pkg-badge").value = pkg ? pkg.badge || "" : "";
       document.getElementById("pkg-available").checked = pkg ? pkg.available !== false : true;
       document.getElementById("pkg-hideitems").checked = pkg ? pkg.hideItems !== false : true;
       document.getElementById("packageStatus").textContent = "";
 
-      renderPackageItemPicker(pkg ? pkg.items : []);
+      renderPackagePickers(pkg);
       updatePackageTypeUI();
       document.getElementById("articleFormBox").style.display = "none";
       box.style.display = "block";
@@ -1252,7 +1296,7 @@
       const id = document.getElementById("pkg-id").value;
       const name = document.getElementById("pkg-name").value.trim();
       const page = document.getElementById("pkg-page").value;
-      const type = document.getElementById("pkg-type").value === "bundle" ? "bundle" : "choice";
+      const type = document.getElementById("pkg-type").value;
       const priceRaw = document.getElementById("pkg-price").value.trim();
       const price = priceRaw === "" ? null : parseFloat(priceRaw);
       const oldPriceRaw = document.getElementById("pkg-oldprice").value.trim();
@@ -1263,7 +1307,7 @@
         status.style.color = "#e63329";
         return;
       }
-      if (type === "bundle" && price !== null && (!Number.isFinite(price) || price < 0)) {
+      if (type !== "choice" && price !== null && (!Number.isFinite(price) || price < 0)) {
         status.textContent = "Invalid package price";
         status.style.color = "#e63329";
         return;
@@ -1274,36 +1318,53 @@
         return;
       }
 
+      const choices = Array.from(document.querySelectorAll("#pkg-choices .pkg-item-check:checked"))
+        .map(function (box) {
+          return { productId: box.value, quantity: 1 };
+        });
       const items = Array.from(document.querySelectorAll("#pkg-items .pkg-item-check:checked"))
         .map(function (box) {
           const qty = box.closest(".pkg-item").querySelector(".pkg-qty");
           return {
             productId: box.value,
-            quantity: type === "bundle" ? Math.min(100, Math.max(1, parseInt(qty.value, 10) || 1)) : 1,
+            quantity: Math.min(100, Math.max(1, parseInt(qty && qty.value, 10) || 1)),
           };
         });
 
-      if (!items.length) {
-        status.textContent = "Select at least one product";
+      if ((type === "choice" || type === "mixed") && !choices.length) {
+        status.textContent = "Select at least one choice option";
         status.style.color = "#e63329";
         return;
       }
+      if ((type === "bundle" || type === "mixed") && !items.length) {
+        status.textContent = "Select at least one included item";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const features = document.getElementById("pkg-features").value
+        .split(/\r?\n/)
+        .map(function (line) { return line.trim(); })
+        .filter(Boolean)
+        .slice(0, 12);
 
       const pkg = {
         id: id || "pkg-" + slugify(name) + "-" + Date.now().toString(36),
         name: name,
         page: page,
         type: type,
-        price: type === "bundle" ? price : null,
-        oldPrice: type === "bundle" && Number.isFinite(oldPrice) ? oldPrice : null,
+        price: type === "choice" ? null : price,
+        oldPrice: type === "choice" ? null : (Number.isFinite(oldPrice) ? oldPrice : null),
         badge: document.getElementById("pkg-badge").value.trim(),
         shortDesc: document.getElementById("pkg-short").value.trim(),
         longDesc: document.getElementById("pkg-long").value.trim(),
+        features: features,
         image: document.getElementById("pkg-image").value.trim() || "images/placeholder.svg",
         position: parseInt(document.getElementById("pkg-position").value, 10) || 1,
         available: document.getElementById("pkg-available").checked,
         hideItems: document.getElementById("pkg-hideitems").checked,
-        items: items,
+        choices: type === "bundle" ? [] : choices,
+        items: type === "choice" ? [] : items,
       };
 
       content.packages = (content.packages || []).filter(function (p) { return p.id !== pkg.id; });

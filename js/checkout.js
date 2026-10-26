@@ -38,7 +38,7 @@ function readCart() {
     return raw
       .filter((item) => item && typeof item === "object")
       .map((item) => ({
-        id: String(item.id == null ? "" : item.id).slice(0, 60),
+        id: String(item.id == null ? "" : item.id).slice(0, 140),
         name: String(item.name == null ? "" : item.name).slice(0, 120),
         price: Number(item.price),
         qty: Math.min(100, Math.max(1, parseInt(item.qty, 10) || 1)),
