@@ -557,6 +557,160 @@ function normalizeProductList(products) {
   return out;
 }
 
+const DEFAULTS_SNAPSHOT_KEY = "defaults-snapshot.json";
+const SYNC_FIELDS = [
+  "name",
+  "page",
+  "category",
+  "price",
+  "oldPrice",
+  "badge",
+  "shortDesc",
+  "longDesc",
+  "dimension",
+  "image",
+  "position",
+  "available",
+  "url",
+  "addons",
+];
+
+function buildDefaultSnapshot() {
+  const products = normalizeProductList(DEFAULT_CONTENT.products.map(cleanProduct));
+  return {
+    hash: crypto.createHash("sha256").update(JSON.stringify(products)).digest("hex"),
+    products,
+  };
+}
+
+function sameValue(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function syncProductsWithDefaults(storedProducts, previousSnapshot, currentSnapshot) {
+  const stored = Array.isArray(storedProducts) ? storedProducts : [];
+  const current =
+    currentSnapshot && Array.isArray(currentSnapshot.products) ? currentSnapshot.products : [];
+  const previous =
+    previousSnapshot && Array.isArray(previousSnapshot.products)
+      ? previousSnapshot.products
+      : null;
+  const before = JSON.stringify(stored);
+
+  if (!previous) {
+    const updated = stored.map((product) => {
+      const fallback = current.find((p) => p.id === product.id);
+      if (!fallback) return product;
+
+      const next = { ...product };
+      SYNC_FIELDS.forEach((field) => {
+        if (
+          !Object.prototype.hasOwnProperty.call(next, field) &&
+          Object.prototype.hasOwnProperty.call(fallback, field)
+        ) {
+          next[field] = fallback[field];
+        }
+      });
+
+      if (
+        (!next.image || next.image === "images/placeholder.svg") &&
+        fallback.image &&
+        fallback.image !== "images/placeholder.svg"
+      ) {
+        next.image = fallback.image;
+      }
+
+      return next;
+    });
+
+    const products = normalizeProductList(updated);
+    return {
+      products,
+      changed: JSON.stringify(products) !== before,
+      initialized: true,
+    };
+  }
+
+  const previousById = new Map(previous.map((p) => [p.id, p]));
+  const currentById = new Map(current.map((p) => [p.id, p]));
+  const storedById = new Map(stored.map((p) => [p.id, p]));
+  const out = [];
+
+  stored.forEach((product) => {
+    const oldDefault = previousById.get(product.id);
+    const newDefault = currentById.get(product.id);
+
+    if (newDefault && oldDefault) {
+      const next = { ...product };
+      SYNC_FIELDS.forEach((field) => {
+        const inNew = Object.prototype.hasOwnProperty.call(newDefault, field);
+        const inOld = Object.prototype.hasOwnProperty.call(oldDefault, field);
+        const inStored = Object.prototype.hasOwnProperty.call(product, field);
+
+        if (!inNew) {
+          if (inOld && sameValue(product[field], oldDefault[field])) {
+            delete next[field];
+          }
+          return;
+        }
+
+        if (!inStored) {
+          next[field] = newDefault[field];
+          return;
+        }
+
+        if (inOld && sameValue(product[field], oldDefault[field])) {
+          next[field] = newDefault[field];
+        }
+      });
+      out.push(next);
+      return;
+    }
+
+    if (newDefault) {
+      out.push(product);
+      return;
+    }
+
+    if (oldDefault) {
+      const unchanged = SYNC_FIELDS.filter((field) => field !== "position").every(
+        (field) => {
+          const inOld = Object.prototype.hasOwnProperty.call(oldDefault, field);
+          const inStored = Object.prototype.hasOwnProperty.call(product, field);
+          if (!inOld && !inStored) return true;
+          return inOld && inStored && sameValue(product[field], oldDefault[field]);
+        }
+      );
+      if (!unchanged) out.push(product);
+      return;
+    }
+
+    out.push(product);
+  });
+
+  current.forEach((product) => {
+    if (storedById.has(product.id) || previousById.has(product.id)) return;
+    out.push({ ...product });
+  });
+
+  const products = normalizeProductList(out);
+  return {
+    products,
+    changed: JSON.stringify(products) !== before,
+    initialized: false,
+  };
+}
+
+async function readDefaultsSnapshot(store) {
+  try {
+    const snapshot = await store.get(DEFAULTS_SNAPSHOT_KEY, { type: "json" });
+    if (snapshot && snapshot.hash && Array.isArray(snapshot.products)) {
+      return snapshot;
+    }
+  } catch (error) {}
+  return null;
+}
+
 /* ============================================
    HANDLER
    ============================================ */
@@ -577,7 +731,30 @@ exports.handler = async (event) => {
   if (event.httpMethod === "GET") {
     try {
       const stored = await store.get("content.json", { type: "json" });
-      return json(200, normalizeStored(stored), headers);
+      const content = normalizeStored(stored);
+      const currentSnapshot = buildDefaultSnapshot();
+      const previousSnapshot = await readDefaultsSnapshot(store);
+      const sync = syncProductsWithDefaults(
+        content.products,
+        previousSnapshot,
+        currentSnapshot
+      );
+      content.products = sync.products;
+
+      if (
+        !previousSnapshot ||
+        previousSnapshot.hash !== currentSnapshot.hash ||
+        sync.changed
+      ) {
+        try {
+          await store.set("content.json", JSON.stringify(content));
+          await store.set(DEFAULTS_SNAPSHOT_KEY, JSON.stringify(currentSnapshot));
+        } catch (error) {
+          console.error("site-content sync save error:", error);
+        }
+      }
+
+      return json(200, content, headers);
     } catch (error) {
       console.error("site-content GET error:", error);
       return json(500, { error: "Unable to load content" }, headers);
@@ -633,3 +810,8 @@ exports.handler = async (event) => {
 };
 
 exports.DEFAULT_CONTENT = DEFAULT_CONTENT;
+exports.__test = {
+  buildDefaultSnapshot,
+  syncProductsWithDefaults,
+  normalizeProductList,
+};
