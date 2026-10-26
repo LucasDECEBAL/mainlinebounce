@@ -463,27 +463,35 @@ function packageCardHTML(pkg, content) {
     action = '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
   } else if (needsChoice) {
     action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-pink btn-sm">Choose package</a>';
+  } else if (info.price !== null) {
+    action = '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(pkg.id) +
+      '" data-name="' + esc(pkg.name) + '" data-price="' + esc(info.price) +
+      '" data-image="' + esc(image) + '">Add to cart</button>';
   } else {
-    action = '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-outline btn-sm">View Package</a>';
-    if (info.price !== null) {
-      action += '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(pkg.id) +
-        '" data-name="' + esc(pkg.name) + '" data-price="' + esc(info.price) +
-        '" data-image="' + esc(image) + '">Add to cart</button>';
-    } else {
-      action += '<a href="tel:2674053125" class="btn btn-pink btn-sm">Call for price</a>';
-    }
+    action = '<a href="tel:2674053125" class="btn btn-pink btn-sm">Call for price</a>';
   }
+
+  const badgeHTML =
+    (pkg.badge ? '<span class="promo-badge">' + esc(pkg.badge) + "</span>" : "") +
+    (available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>');
 
   return (
     '<article class="product-card product-card--package' + (available ? "" : " is-unavailable") + '">' +
-      '<div class="product-image"><img src="' + esc(image) + '" alt="' + esc(pkg.name) + '" loading="lazy" /></div>' +
+      '<div class="product-image">' +
+        '<img src="' + esc(image) + '" alt="' + esc(pkg.name) + '" loading="lazy" />' +
+        badgeHTML +
+      "</div>" +
       '<div class="product-card-body">' +
         "<h3>" + esc(pkg.name) + "</h3>" +
-        (pkg.badge ? '<span class="promo-badge">' + esc(pkg.badge) + "</span>" : "") +
-        '<p class="product-short">' + esc(pkg.shortDesc || count) + "</p>" +
-        '<p class="package-count">' + esc(count) + "</p>" +
-        '<span class="price-tag">' + priceHTML + "</span>" +
-        action +
+        '<p class="product-card-desc">' + esc(pkg.shortDesc || "") + "</p>" +
+        '<p class="card-meta">' + esc(count) + "</p>" +
+        '<div class="card-footer">' +
+          '<span class="price-tag">' + priceHTML + "</span>" +
+          '<div class="card-actions">' +
+            '<a href="' + esc(packageDetailUrl(pkg)) + '" class="btn btn-outline btn-sm">View Package</a>' +
+            action +
+          "</div>" +
+        "</div>" +
       "</div>" +
     "</article>"
   );
@@ -604,6 +612,14 @@ function bindAddButtons(root) {
 }
 
 /* ---------- Product card ---------- */
+function cardCategoryLabel(p) {
+  if (p.page === "addons") return "Add-on";
+  if (p.page === "photo-booths") return "Photo booth";
+  if (p.category === "teen") return "Teen";
+  if (p.category === "corporate") return "Corporate";
+  return "Kids";
+}
+
 function productCardHTML(p) {
   const url = detailUrl(p);
   const hasPrice = p.price !== null && p.price !== undefined;
@@ -612,35 +628,48 @@ function productCardHTML(p) {
     : p.oldPrice
       ? '<span class="price-old">' + money(p.oldPrice) + '</span><span class="price-new">' + money(p.price) + "</span>"
       : money(p.price);
+  const badgeHTML =
+    (p.badge ? '<span class="promo-badge">' + esc(p.badge) + "</span>" : "") +
+    (p.available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>');
 
   let action;
-
   if (!p.available) {
     action = '<button class="btn btn-outline btn-sm" disabled>Unavailable</button>';
   } else if (!hasPrice) {
-    action = '<a href="tel:2674053125" class="btn btn-pink btn-sm">📞 Call for price</a>';
+    action = '<a href="tel:2674053125" class="btn btn-pink btn-sm">Call for price</a>';
   } else {
     action = '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(p.id) +
       '" data-name="' + esc(p.name) + '" data-price="' + esc(p.price) +
       '" data-image="' + esc(safeImage(p.image)) + '">Add to cart</button>';
   }
 
+  const description = p.page === "photo-booths" ? "" : (p.shortDesc || "");
+  const longDescription = p.page === "photo-booths" && p.longDesc
+    ? '<p class="product-long">' + esc(p.longDesc) + "</p>"
+    : "";
+
   return (
     '<article class="product-card' + (p.available ? "" : " is-unavailable") + '">' +
-      '<div class="product-image"><img src="' + esc(safeImage(p.image)) + '" alt="' + esc(p.name) + '" loading="lazy" /></div>' +
+      '<div class="product-image">' +
+        '<img src="' + esc(safeImage(p.image)) + '" alt="' + esc(p.name) + '" loading="lazy" />' +
+        badgeHTML +
+      "</div>" +
       '<div class="product-card-body">' +
         "<h3>" + esc(p.name) + "</h3>" +
-        (p.page === "photo-booths" && p.longDesc ? '<p class="product-long">' + esc(p.longDesc) + "</p>" : "") +
-        (p.badge ? '<span class="promo-badge">' + esc(p.badge) + "</span>" : "") +
-        (p.available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>') +
-        '<span class="price-tag">' + priceHTML + "</span>" +
-        '<a href="' + esc(url) + '" class="btn btn-pink btn-sm">View Details</a>' +
-        action +
+        '<p class="product-card-desc">' + esc(description) + "</p>" +
+        longDescription +
+        '<p class="card-meta">' + esc(cardCategoryLabel(p)) + "</p>" +
+        '<div class="card-footer">' +
+          '<span class="price-tag">' + priceHTML + "</span>" +
+          '<div class="card-actions">' +
+            '<a href="' + esc(url) + '" class="btn btn-outline btn-sm">View Details</a>' +
+            action +
+          "</div>" +
+        "</div>" +
       "</div>" +
     "</article>"
   );
 }
-
 /* ---------- Catalog (per page) ---------- */
 function renderCatalog(root, content) {
   const page = root.getAttribute("data-page") || "inflatables";
