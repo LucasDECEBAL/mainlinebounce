@@ -265,11 +265,26 @@ async function loadSiteContent() {
     if (!Array.isArray(cachedContent.faq) || cachedContent.faq.length === 0) {
       cachedContent.faq = DEFAULT_CONTENT.faq;
     }
+    normalizeProductPositions(cachedContent);
   } catch (e) {
     contentIsFallback = true;
     cachedContent = DEFAULT_CONTENT;
+    normalizeProductPositions(cachedContent);
   }
   return cachedContent;
+}
+
+/* Positions 1..N : ordre ligne par ligne, de gauche à droite */
+function normalizeProductPositions(content) {
+  content.products = (content.products || [])
+    .slice()
+    .sort(function (a, b) {
+      return (Number(a.position) || 0) - (Number(b.position) || 0) ||
+        String(a.name || "").localeCompare(String(b.name || ""));
+    })
+    .map(function (p, i) {
+      return Object.assign({}, p, { position: i + 1 });
+    });
 }
 
 /* ---------- Banners ---------- */

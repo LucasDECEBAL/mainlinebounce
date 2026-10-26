@@ -360,11 +360,22 @@ function normalizeStored(stored) {
       stored.banners && stored.banners[key] ? stored.banners[key] : base.banners[key];
   });
 
+  // Positions normalisées 1..N (ordre ligne par ligne, gauche -> droite)
+  let products = Array.isArray(stored.products) ? stored.products : base.products;
+  products = products
+    .slice()
+    .sort(
+      (a, b) =>
+        (Number(a.position) || 0) - (Number(b.position) || 0) ||
+        String(a.name || "").localeCompare(String(b.name || ""))
+    )
+    .map((p, i) => ({ ...p, position: i + 1 }));
+
   return {
     version: 1,
     banners,
     addons: Array.isArray(stored.addons) && stored.addons.length ? stored.addons : base.addons,
-    products: Array.isArray(stored.products) ? stored.products : base.products,
+    products,
     faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
   };
 }
