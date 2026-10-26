@@ -1,5 +1,18 @@
 const { getStore } = require("@netlify/blobs");
 const crypto = require("crypto");
+const {
+  HttpError,
+  corsHeaders,
+  json,
+  noStore,
+  isAdmin,
+  getClientIp,
+  rateLimit,
+  readJson,
+  text,
+  safeUrl,
+  safeImage,
+} = require("./lib/security");
 
 /* ============================================
    DEFAULT CONTENT (if nothing has been saved yet)
@@ -344,8 +357,15 @@ const BANNER_KEYS = ["home", "inflatables", "addons", "youngAdult"];
    VALIDATION / SANITIZATION
    ============================================ */
 function cleanStr(value, max) {
-  if (typeof value !== "string") return "";
-  return value.slice(0, max);
+  return text(value, max);
+}
+
+const RESERVED_IDS = ["__proto__", "prototype", "constructor"];
+
+function cleanId(value) {
+  const id = cleanStr(value, 60).trim();
+  if (!id || RESERVED_IDS.indexOf(id) !== -1) return "";
+  return id;
 }
 
 function cleanPrice(value) {
@@ -362,7 +382,7 @@ function cleanBanner(b) {
     title: cleanStr(b && b.title, 160),
     sub: cleanStr(b && b.sub, 160),
     cta: cleanStr(b && b.cta, 30),
-    link: cleanStr(b && b.link, 300),
+    link: safeUrl(b && b.link),
   };
 }
 
@@ -376,11 +396,12 @@ function cleanAddon(a) {
   };
 }
 
-function cleanProduct(p) {
-  const page = PAGES.includes(p && p.page) ? p.page : "inflatables";
+function cleanProduct(input) {
+  const p = input && typeof input === "object" ? input : {};
+  const page = PAGES.includes(p.page) ? p.page : "inflatables";
   const category = CATEGORIES.includes(p.category) ? p.category : "kids";
 
-  const priceProvided = p && p.price !== null && p.price !== undefined && p.price !== "";
+  const priceProvided = p.price !== null && p.price !== undefined && p.price !== "";
   let price = null;
   if (priceProvided) {
     price = cleanPrice(p.price);
@@ -389,12 +410,12 @@ function cleanProduct(p) {
 
   let addons = Array.isArray(p.addons) ? p.addons : [];
   addons = addons
-    .filter((id) => typeof id === "string")
-    .map((id) => id.slice(0, 60))
+    .map((id) => cleanId(id))
+    .filter(Boolean)
     .slice(0, 6);
 
   return {
-    id: cleanStr(p.id, 60) || "item-" + Date.now().toString(36),
+    id: cleanId(p.id) || "item-" + crypto.randomBytes(4).toString("hex"),
     name: cleanStr(p.name, 100),
     page,
     category,
@@ -404,10 +425,10 @@ function cleanProduct(p) {
     shortDesc: cleanStr(p.shortDesc, 300),
     longDesc: cleanStr(p.longDesc, 3000),
     dimension: cleanStr(p.dimension, 60),
-    image: cleanStr(p.image, 300) || "images/placeholder.svg",
+    image: safeImage(p.image) || "images/placeholder.svg",
     position: Math.min(99, Math.max(1, parseInt(p.position, 10) || 1)),
     available: p.available !== false,
-    url: cleanStr(p.url, 300),
+    url: safeUrl(p.url),
     addons,
   };
 }
@@ -434,6 +455,20 @@ function cleanContent(raw) {
     .map(cleanProduct)
     .filter((p) => p.name);
 
+  const seenIds = new Set();
+  products.forEach((product) => {
+    if (seenIds.has(product.id)) {
+      let candidate = product.id + "-2";
+      let suffix = 2;
+      while (seenIds.has(candidate)) {
+        suffix += 1;
+        candidate = product.id + "-" + suffix;
+      }
+      product.id = candidate;
+    }
+    seenIds.add(product.id);
+  });
+
   const faq = (Array.isArray(source.faq) ? source.faq : DEFAULT_CONTENT.faq)
     .slice(0, 50)
     .map(cleanFaqItem)
@@ -459,10 +494,21 @@ function normalizeStored(stored) {
   const banners = {};
   BANNER_KEYS.forEach((key) => {
     banners[key] =
-      stored.banners && stored.banners[key] ? stored.banners[key] : base.banners[key];
+      stored.banners && stored.banners[key]
+        ? cleanBanner(stored.banners[key])
+        : cleanBanner(base.banners[key]);
   });
 
   let products = Array.isArray(stored.products) ? stored.products : base.products;
+
+  products = products
+    .filter((p) => p && typeof p === "object")
+    .map((p) => ({
+      ...p,
+      id: typeof p.id === "string" ? p.id : "",
+      image: safeImage(p.image) || "images/placeholder.svg",
+      url: safeUrl(p.url),
+    }));
 
   // S'assure que chaque page a du contenu (migration des anciennes données)
   ["addons", "silent-disco"].forEach((page) => {
@@ -511,20 +557,7 @@ exports.handler = async (event) => {
     token: process.env.NETLIFY_BLOBS_TOKEN,
   });
 
-  const allowedOrigins = [
-    "https://mainlinebounce.com",
-    "https://www.mainlinebounce.com",
-    process.env.SITE_URL,
-  ].filter(Boolean);
-  const origin = event.headers.origin;
-  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-
-  const headers = {
-    "Access-Control-Allow-Origin": corsOrigin,
-    "Access-Control-Allow-Headers": "Content-Type, x-admin-key",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Content-Type": "application/json",
-  };
+  const headers = noStore(corsHeaders(event));
 
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers, body: "" };
@@ -532,56 +565,61 @@ exports.handler = async (event) => {
 
   /* 📖 GET → public content (read by the site) */
   if (event.httpMethod === "GET") {
-    const stored = await store.get("content.json", { type: "json" });
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(normalizeStored(stored)),
-    };
+    try {
+      const stored = await store.get("content.json", { type: "json" });
+      return json(200, normalizeStored(stored), headers);
+    } catch (error) {
+      console.error("site-content GET error:", error);
+      return json(500, { error: "Unable to load content" }, headers);
+    }
   }
 
   /* ✍️ POST → admin only */
   if (event.httpMethod === "POST") {
-    const adminKey = event.headers["x-admin-key"];
-    const expectedKey = process.env.ADMIN_KEY;
+    const isVerify = Boolean(event.queryStringParameters && event.queryStringParameters.verify);
 
-    let isValid = false;
+    if (isVerify) {
+      const limit = rateLimit("admin-verify:" + getClientIp(event), 20, 15 * 60 * 1000);
+      if (!limit.ok) {
+        return json(
+          429,
+          { error: "Too many attempts. Please try again later." },
+          Object.assign({}, headers, { "Retry-After": String(limit.retryAfter) })
+        );
+      }
+    }
+
+    if (!isAdmin(event)) {
+      return json(401, { error: "Unauthorized" }, headers);
+    }
+
+    if (isVerify) {
+      return json(200, { ok: true }, headers);
+    }
+
     try {
-      isValid = crypto.timingSafeEqual(
-        Buffer.from(adminKey || ""),
-        Buffer.from(expectedKey || "")
-      );
-    } catch (e) {
-      isValid = false;
-    }
-
-    if (!isValid) {
-      return { statusCode: 401, headers, body: JSON.stringify({ error: "Unauthorized" }) };
-    }
-
-    // Key verification only (admin login)
-    if (event.queryStringParameters && event.queryStringParameters.verify) {
-      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
-    }
-
-    try {
-      const raw = JSON.parse(event.body || "{}");
+      const raw = readJson(event, 512 * 1024);
       const content = cleanContent(raw);
 
       if (content.products.length === 0 && Array.isArray(raw.products) && raw.products.length > 0) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: "No valid products" }) };
+        throw new HttpError(400, "No valid products");
       }
 
       await store.set("content.json", JSON.stringify(content));
-      return { statusCode: 200, headers, body: JSON.stringify(content) };
+      return json(200, content, headers);
     } catch (error) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: error.message || "Invalid content" }),
-      };
+      if (error instanceof HttpError) {
+        return json(error.status, { error: error.message }, headers);
+      }
+      if (error instanceof Error && error.message === "Invalid price") {
+        return json(400, { error: "Invalid price" }, headers);
+      }
+      console.error("site-content POST error:", error);
+      return json(400, { error: "Invalid content" }, headers);
     }
   }
 
-  return { statusCode: 405, headers, body: JSON.stringify({ error: "Method Not Allowed" }) };
+  return json(405, { error: "Method Not Allowed" }, headers);
 };
+
+exports.DEFAULT_CONTENT = DEFAULT_CONTENT;

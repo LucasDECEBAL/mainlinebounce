@@ -1,0 +1,9 @@
+node_modules/
+.netlify/
+.DS_Store
+Thumbs.db
+npm-debug.log*
+
+# Remotion trailer output
+trailer-video/node_modules/
+trailer-video/out/

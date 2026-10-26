@@ -1,67 +1,86 @@
 const nodemailer = require("nodemailer");
+const { escapeHtml, line, text } = require("./lib/security");
 
 const DEFAULT_RECIPIENTS = [
   "garciajonathan916.jg@gmail.com",
   "carlineleblanc@gmail.com",
 ];
 
+const EMAIL_RE = /^[^\s@<>"'`]+@[^\s@<>"'`]+\.[A-Za-z]{2,}$/;
+
 function buildCartText(cart = []) {
+  if (!Array.isArray(cart)) return "";
   return cart
     .map((item) => {
-      const price = parseFloat(item.price) || 0;
-      const quantity = parseInt(item.quantity || item.qty) || 1;
-      const itemTotal = (price * quantity).toFixed(2);
-      return `• ${item.name} x${quantity} = $${itemTotal}`;
+      const name = line(item && item.name, 120);
+      const price = Number(item && item.price) || 0;
+      const quantity = Math.max(1, parseInt(item && (item.quantity || item.qty), 10) || 1);
+      return `• ${name} x${quantity} = $${(price * quantity).toFixed(2)}`;
     })
     .join("\n");
 }
 
 function buildEmailContent({ title, customer = {}, cart = [], itemsText = "", total = "0.00", paidLabel = "" }) {
-  const itemsSummary = itemsText || buildCartText(cart) || "No items";
-  const subject = title;
+  const safe = {
+    name: line(customer.name, 100),
+    email: line(customer.email, 150),
+    phone: line(customer.phone, 40),
+    address: line(customer.address, 200),
+    date: line(customer.date || customer.eventDate, 20),
+    location: line(customer.location || customer.where, 100),
+    guests: line(customer.guests, 20),
+    comments: text(customer.comments, 500),
+  };
 
-  const text = [
+  const subject = line(title, 120) || "New booking";
+  const itemsSummary = text(itemsText || buildCartText(cart), 4000) || "No items";
+  const safeTotal = Number(total);
+  const totalLabel = Number.isFinite(safeTotal) ? safeTotal.toFixed(2) : "0.00";
+  const safePaid = line(paidLabel, 40);
+
+  const textBody = [
     subject,
     "",
-    `Customer: ${customer.name || "N/A"}`,
-    `Email: ${customer.email || "N/A"}`,
-    `Phone: ${customer.phone || "N/A"}`,
-    `Address: ${customer.address || "N/A"}`,
-    `Event Date: ${customer.date || customer.eventDate || "N/A"}`,
-    `Location: ${customer.location || customer.where || "N/A"}`,
-    `Guests: ${customer.guests || "N/A"}`,
-    `Comments: ${customer.comments || "No comments"}`,
+    `Customer: ${safe.name || "N/A"}`,
+    `Email: ${safe.email || "N/A"}`,
+    `Phone: ${safe.phone || "N/A"}`,
+    `Address: ${safe.address || "N/A"}`,
+    `Event Date: ${safe.date || "N/A"}`,
+    `Location: ${safe.location || "N/A"}`,
+    `Guests: ${safe.guests || "N/A"}`,
+    `Comments: ${safe.comments || "No comments"}`,
     "",
     "Items Ordered:",
     itemsSummary,
     "",
-    `Total: $${total}${paidLabel ? ` ${paidLabel}` : ""}`,
+    `Total: $${totalLabel}${safePaid ? ` ${safePaid}` : ""}`,
   ].join("\n");
 
   const html = `
     <div style="font-family:Arial,sans-serif;color:#222;line-height:1.5">
-      <h2>${subject}</h2>
-      <p><strong>Customer:</strong> ${customer.name || "N/A"}</p>
-      <p><strong>Email:</strong> ${customer.email || "N/A"}</p>
-      <p><strong>Phone:</strong> ${customer.phone || "N/A"}</p>
-      <p><strong>Address:</strong> ${customer.address || "N/A"}</p>
-      <p><strong>Event Date:</strong> ${customer.date || customer.eventDate || "N/A"}</p>
-      <p><strong>Location:</strong> ${customer.location || customer.where || "N/A"}</p>
-      <p><strong>Guests:</strong> ${customer.guests || "N/A"}</p>
-      <p><strong>Comments:</strong> ${customer.comments || "No comments"}</p>
-      <p><strong>Items Ordered:</strong><br>${itemsSummary.replace(/\n/g, "<br>")}</p>
-      <p><strong>Total:</strong> $${total}${paidLabel ? ` ${paidLabel}` : ""}</p>
+      <h2>${escapeHtml(subject)}</h2>
+      <p><strong>Customer:</strong> ${escapeHtml(safe.name || "N/A")}</p>
+      <p><strong>Email:</strong> ${escapeHtml(safe.email || "N/A")}</p>
+      <p><strong>Phone:</strong> ${escapeHtml(safe.phone || "N/A")}</p>
+      <p><strong>Address:</strong> ${escapeHtml(safe.address || "N/A")}</p>
+      <p><strong>Event Date:</strong> ${escapeHtml(safe.date || "N/A")}</p>
+      <p><strong>Location:</strong> ${escapeHtml(safe.location || "N/A")}</p>
+      <p><strong>Guests:</strong> ${escapeHtml(safe.guests || "N/A")}</p>
+      <p><strong>Comments:</strong> ${escapeHtml(safe.comments || "No comments")}</p>
+      <p><strong>Items Ordered:</strong><br>${escapeHtml(itemsSummary).replace(/\n/g, "<br>")}</p>
+      <p><strong>Total:</strong> $${escapeHtml(totalLabel)}${safePaid ? " " + escapeHtml(safePaid) : ""}</p>
     </div>
   `;
 
-  return { subject, text, html };
+  return { subject, text: textBody, html, replyTo: EMAIL_RE.test(safe.email) ? safe.email : undefined };
 }
 
 function getRecipients() {
   return (process.env.BOOKING_NOTIFICATION_EMAILS || DEFAULT_RECIPIENTS.join(","))
     .split(",")
-    .map((email) => email.trim())
-    .filter(Boolean);
+    .map((value) => value.trim().toLowerCase())
+    .filter((value) => EMAIL_RE.test(value))
+    .filter((value, index, list) => list.indexOf(value) === index);
 }
 
 function createTransport() {
@@ -78,19 +97,26 @@ function createTransport() {
     host,
     port,
     secure: port === 465,
-    auth: {
-      user,
-      pass,
-    },
+    auth: { user, pass },
   });
 }
 
 async function sendBookingEmail({ title, customer, cart, itemsText = "", total, paidLabel = "" }) {
   const transporter = createTransport();
   const recipients = getRecipients();
-  const fromEmail = process.env.SMTP_FROM || `Main Line Bounce <${process.env.SMTP_USER}>`;
+  if (!recipients.length) {
+    throw new Error("No valid notification recipients configured");
+  }
 
-  const { subject, text, html } = buildEmailContent({ title, customer, cart, itemsText, total, paidLabel });
+  const fromEmail = process.env.SMTP_FROM || `Main Line Bounce <${process.env.SMTP_USER}>`;
+  const { subject, text, html, replyTo } = buildEmailContent({
+    title,
+    customer,
+    cart,
+    itemsText,
+    total,
+    paidLabel,
+  });
 
   const info = await transporter.sendMail({
     from: fromEmail,
@@ -98,10 +124,10 @@ async function sendBookingEmail({ title, customer, cart, itemsText = "", total, 
     subject,
     text,
     html,
-    replyTo: customer.email || undefined,
+    replyTo,
   });
 
   return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected };
 }
 
-module.exports = { sendBookingEmail };
+module.exports = { sendBookingEmail, buildEmailContent };

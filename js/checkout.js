@@ -31,7 +31,35 @@ function safeModal(message, title, icon) {
 // ========================================
 // PANIER
 // ========================================
-let cart = JSON.parse(localStorage.getItem("mlb_cart")) || [];
+function readCart() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("mlb_cart"));
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        id: String(item.id == null ? "" : item.id).slice(0, 60),
+        name: String(item.name == null ? "" : item.name).slice(0, 120),
+        price: Number(item.price),
+        qty: Math.min(100, Math.max(1, parseInt(item.qty, 10) || 1)),
+        image: String(item.image == null ? "" : item.image).slice(0, 500),
+      }))
+      .filter((item) => item.id && Number.isFinite(item.price) && item.price >= 0);
+  } catch (e) {
+    return [];
+  }
+}
+
+function escText(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+let cart = readCart();
 let pendingPaymentData = null;
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -66,9 +94,7 @@ function loadCart() {
     total += itemTotal;
 
     // ✅ Échapper le texte pour éviter le XSS
-    const escapedName = document.createElement('div').appendChild(
-      document.createTextNode(item.name)
-    ).parentNode.innerHTML;
+    const escapedName = escText(item.name);
 
     html += `
       <div class="summary-item">
@@ -204,7 +230,7 @@ async function startStripePayment(formData) {
     await handleStripePayment(formData);
   } catch (error) {
     console.error("❌ Error:", error);
-    safeModal("An error occurred: " + error.message, "Payment error", "❌");
+    safeModal("An error occurred. Please try again or call us.", "Payment error", "❌");
     btn.disabled = false;
     btn.textContent = "Pay with Card";
   }

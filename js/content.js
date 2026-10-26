@@ -268,13 +268,34 @@ function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
+/* Only allow links that cannot execute script. */
+function safeUrl(value, fallback) {
+  const raw = String(value == null ? "" : value).trim();
+  if (!raw) return fallback || "";
+  if (/^tel:[+0-9().\-\s]+$/i.test(raw)) return raw;
+  if (/\s/.test(raw)) return fallback || "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^mailto:[^\s]+$/i.test(raw)) return raw;
+  if (/^#[A-Za-z0-9_\-:.]*$/.test(raw)) return raw;
+  if (/^\/(?!\/)[A-Za-z0-9._~\-/%]*(\?[A-Za-z0-9._~%&=+#\-]*)?(#[A-Za-z0-9._~%\-]*)?$/.test(raw)) return raw;
+  if (/^[A-Za-z0-9][A-Za-z0-9._~\-/]*(\?[A-Za-z0-9._~%&=+#\-]*)?(#[A-Za-z0-9._~%\-]*)?$/.test(raw)) return raw;
+  return fallback || "";
+}
+
+function safeImage(value) {
+  const url = safeUrl(value);
+  if (/^(mailto|tel):/i.test(url)) return "images/placeholder.svg";
+  return url || "images/placeholder.svg";
+}
+
 function money(value) {
   const n = Number(value) || 0;
   return "$" + (Math.round(n * 100) / 100).toString().replace(/\.00$/, "");
 }
 
 function detailUrl(product) {
-  if (product.url) return product.url;
+  const custom = safeUrl(product.url);
+  if (custom) return custom;
   return "product.html?id=" + encodeURIComponent(product.id);
 }
 
@@ -351,9 +372,10 @@ function renderBanner(key, content) {
 
   const btn = el.querySelector(".promo-btn");
   if (btn) {
-    if (banner.cta && banner.link) {
+    const href = safeUrl(banner.link);
+    if (banner.cta && href) {
       btn.textContent = banner.cta;
-      btn.href = banner.link;
+      btn.href = href;
       btn.style.display = "";
     } else {
       btn.style.display = "none";
@@ -398,12 +420,12 @@ function productCardHTML(p) {
   } else {
     action = '<button class="btn btn-pink btn-sm" data-add-to-cart data-id="' + esc(p.id) +
       '" data-name="' + esc(p.name) + '" data-price="' + esc(p.price) +
-      '" data-image="' + esc(p.image) + '">Add to cart</button>';
+      '" data-image="' + esc(safeImage(p.image)) + '">Add to cart</button>';
   }
 
   return (
     '<article class="product-card' + (p.available ? "" : " is-unavailable") + '">' +
-      '<div class="product-image"><img src="' + esc(p.image) + '" alt="' + esc(p.name) + '" loading="lazy" /></div>' +
+      '<div class="product-image"><img src="' + esc(safeImage(p.image)) + '" alt="' + esc(p.name) + '" loading="lazy" /></div>' +
       "<h3>" + esc(p.name) + "</h3>" +
       (p.badge ? '<span class="promo-badge">' + esc(p.badge) + "</span>" : "") +
       (p.available ? "" : '<span class="promo-badge badge-unavailable">UNAVAILABLE</span>') +
@@ -452,10 +474,10 @@ function renderProductPage(root, content, product) {
                 ? '<a href="tel:2674053125" class="btn btn-pink">📞 Call for price</a>'
                 : '<button class="btn btn-pink" data-add-to-cart data-id="' + esc(a.id) +
                   '" data-name="' + esc(a.name) + '" data-price="' + esc(a.price) +
-                  '" data-image="' + esc(a.image) + '">Add to cart</button>';
+                  '" data-image="' + esc(safeImage(a.image)) + '">Add to cart</button>';
               return (
                 '<article class="equipment-card">' +
-                  '<div class="product-image"><img src="' + esc(a.image) + '" alt="' + esc(a.name) + '" loading="lazy" /></div>' +
+                  '<div class="product-image"><img src="' + esc(safeImage(a.image)) + '" alt="' + esc(a.name) + '" loading="lazy" /></div>' +
                   "<h3>" + esc(a.name) + "</h3>" +
                   '<p class="desc">' + esc(a.shortDesc) + "</p>" +
                   '<span class="price-tag">' + (a.price == null ? "Call for price" : money(a.price)) + "</span>" +
@@ -477,14 +499,14 @@ function renderProductPage(root, content, product) {
       : '<button class="btn btn-pink" id="detail-add"' +
         ' data-add-to-cart data-id="' + esc(product.id) +
         '" data-name="' + esc(product.name) + '" data-price="' + esc(product.price) +
-        '" data-image="' + esc(product.image) + '">Add to cart</button>' +
+        '" data-image="' + esc(safeImage(product.image)) + '">Add to cart</button>' +
         '<a href="tel:2674053125" class="btn btn-outline">Call Now</a>';
 
   root.innerHTML =
     '<section class="product-detail">' +
       '<div class="container">' +
         '<div class="product-detail-inner">' +
-          '<div class="detail-image-card"><img src="' + esc(product.image) + '" alt="' + esc(product.name) + '" /></div>' +
+          '<div class="detail-image-card"><img src="' + esc(safeImage(product.image)) + '" alt="' + esc(product.name) + '" /></div>' +
           '<div class="detail-info-card">' +
             "<h1>" + esc(product.name) + "</h1>" +
             (product.badge ? '<span class="promo-badge">' + esc(product.badge) + "</span>" : "") +

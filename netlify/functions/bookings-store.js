@@ -1,4 +1,5 @@
 const { getStore } = require("@netlify/blobs");
+const crypto = require("crypto");
 
 const STORE_NAME = "bookings";
 const KEY = "bookings.json";
@@ -11,18 +12,30 @@ function store() {
   });
 }
 
-function clean(value, max) {
+function cleanLine(value, max) {
   if (value === null || value === undefined) return "";
-  return String(value).slice(0, max);
+  return String(value)
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .slice(0, max);
+}
+
+function cleanMulti(value, max) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/\r/g, "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
+    .slice(0, max);
+}
+
+function cleanTotal(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(1000000, Math.round(n * 100) / 100);
 }
 
 function newId() {
-  return (
-    "BK-" +
-    Date.now().toString(36).toUpperCase() +
-    "-" +
-    Math.random().toString(36).slice(2, 6).toUpperCase()
-  );
+  return "BK-" + crypto.randomUUID().toUpperCase();
 }
 
 async function getBookings() {
@@ -33,7 +46,7 @@ async function getBookings() {
 async function recordBooking(input) {
   const list = await getBookings();
 
-  const sessionId = clean(input.stripeSessionId, 100);
+  const sessionId = cleanLine(input.stripeSessionId, 100);
   if (sessionId) {
     const existing = list.find((b) => b.stripeSessionId === sessionId);
     if (existing) return existing;
@@ -45,17 +58,17 @@ async function recordBooking(input) {
       input.createdAt && !isNaN(Date.parse(input.createdAt))
         ? new Date(input.createdAt).toISOString()
         : new Date().toISOString(),
-    eventDate: clean(input.date, 20),
-    name: clean(input.name, 100),
-    email: clean(input.email, 150),
-    phone: clean(input.phone, 40),
-    address: clean(input.address, 200),
-    location: clean(input.location, 100),
-    country: clean(input.country, 60),
-    guests: clean(input.guests, 20),
-    comments: clean(input.comments, 500),
-    items: clean(input.items, 1000),
-    total: Math.round((Number(input.total) || 0) * 100) / 100,
+    eventDate: cleanLine(input.date, 20),
+    name: cleanLine(input.name, 100),
+    email: cleanLine(input.email, 150),
+    phone: cleanLine(input.phone, 40),
+    address: cleanLine(input.address, 200),
+    location: cleanLine(input.location, 100),
+    country: cleanLine(input.country, 60),
+    guests: cleanLine(input.guests, 20),
+    comments: cleanMulti(input.comments, 500),
+    items: cleanMulti(input.items, 1000),
+    total: cleanTotal(input.total),
     payment: input.payment === "paid" ? "paid" : "pay_on_site",
     stripeSessionId: sessionId,
   };
@@ -79,8 +92,10 @@ async function updateBooking(id, patch) {
   if (index === -1) return null;
 
   const current = list[index];
-  const pick = (value, max, fallback) =>
-    value === undefined ? fallback : clean(value, max);
+  const pickLine = (value, max, fallback) =>
+    value === undefined ? fallback : cleanLine(value, max);
+  const pickMulti = (value, max, fallback) =>
+    value === undefined ? fallback : cleanMulti(value, max);
 
   const updated = {
     ...current,
@@ -88,18 +103,16 @@ async function updateBooking(id, patch) {
       patch.createdAt && !isNaN(Date.parse(patch.createdAt))
         ? new Date(patch.createdAt).toISOString()
         : current.createdAt,
-    eventDate: pick(patch.eventDate, 20, current.eventDate),
-    name: pick(patch.name, 100, current.name),
-    email: pick(patch.email, 150, current.email),
-    phone: pick(patch.phone, 40, current.phone),
-    address: pick(patch.address, 200, current.address),
-    location: pick(patch.location, 100, current.location),
-    guests: pick(patch.guests, 20, current.guests),
-    items: pick(patch.items, 1000, current.items),
-    comments: pick(patch.comments, 500, current.comments),
-    total: patch.total === undefined
-      ? current.total
-      : Math.round((Number(patch.total) || 0) * 100) / 100,
+    eventDate: pickLine(patch.eventDate, 20, current.eventDate),
+    name: pickLine(patch.name, 100, current.name),
+    email: pickLine(patch.email, 150, current.email),
+    phone: pickLine(patch.phone, 40, current.phone),
+    address: pickLine(patch.address, 200, current.address),
+    location: pickLine(patch.location, 100, current.location),
+    guests: pickLine(patch.guests, 20, current.guests),
+    items: pickMulti(patch.items, 1000, current.items),
+    comments: pickMulti(patch.comments, 500, current.comments),
+    total: patch.total === undefined ? current.total : cleanTotal(patch.total),
     payment:
       patch.payment === "paid" || patch.payment === "pay_on_site"
         ? patch.payment

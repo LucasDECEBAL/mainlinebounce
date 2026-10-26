@@ -1,115 +1,144 @@
-// Cette fonction reçoit la confirmation de paiement de Stripe
-// puis envoie les infos à Discord
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+// Receives Stripe payment confirmations (signature verified) and
+// records the booking + sends notifications.
 const { sendBookingEmail } = require("./booking-email");
 const { recordBooking } = require("./bookings-store");
+const { text, line, email } = require("./lib/security");
 
 const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK;
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
+let stripeClient = null;
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("Stripe is not configured");
+  }
+  if (!stripeClient) {
+    stripeClient = require("stripe")(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripeClient;
+}
 
 exports.handler = async (event) => {
-  const sig = event.headers["stripe-signature"];
-  let stripeEvent;
-
-  // ✅ CORRECTION : on récupère le body BRUT (non modifié)
-  // Stripe exige le body exact pour vérifier la signature
-  const rawBody = event.isBase64Encoded
-    ? Buffer.from(event.body, "base64").toString("utf8")
-    : event.body;
-
-  try {
-    // Vérifie que la requête vient bien de Stripe (sécurité)
-    stripeEvent = stripe.webhooks.constructEvent(
-      rawBody,           // ← on utilise le body brut au lieu de event.body
-      sig,
-      STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error("⚠️ Signature webhook invalide:", err.message);
-    return { statusCode: 400, body: `Webhook Error: ${err.message}` };
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
   }
 
-  // On écoute l'événement "paiement complété"
-  if (stripeEvent.type === "checkout.session.completed") {
-    const session = stripeEvent.data.object;
-    const m = session.metadata || {};
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error("STRIPE_WEBHOOK_SECRET is not configured");
+    return { statusCode: 500, body: "Webhook not configured" };
+  }
 
-    // Total payé (Stripe renvoie en cents)
-    const total = (session.amount_total / 100).toFixed(2);
+  const signature = event.headers["stripe-signature"];
+  if (!signature) {
+    return { statusCode: 400, body: "Missing signature" };
+  }
 
-    // ✅ Sauvegarde du booking (pour l'export Excel dans l'admin)
-    try {
-      await recordBooking({
-        date: m.date,
-        name: m.name,
-        email: m.email || session.customer_email,
-        phone: m.phone,
-        address: m.address,
-        location: m.location,
-        guests: m.guests,
-        comments: m.comments,
-        items: m.items,
-        total,
-        payment: "paid",
-        stripeSessionId: session.id,
-      });
-      console.log("✅ Booking enregistré pour l'export Excel");
-    } catch (err) {
-      console.error("❌ Erreur sauvegarde booking:", err);
-    }
+  const rawBody = event.isBase64Encoded
+    ? Buffer.from(event.body || "", "base64").toString("utf8")
+    : String(event.body || "");
 
+  let stripeEvent;
+  try {
+    stripeEvent = getStripe().webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (error) {
+    console.error("Invalid webhook signature:", error.message);
+    return { statusCode: 400, body: "Invalid signature" };
+  }
+
+  if (stripeEvent.type !== "checkout.session.completed") {
+    return { statusCode: 200, body: JSON.stringify({ received: true }) };
+  }
+
+  const session = stripeEvent.data.object;
+  if (!session || session.payment_status !== "paid") {
+    // Delayed payment methods can complete later; do not record until paid.
+    return { statusCode: 200, body: JSON.stringify({ received: true }) };
+  }
+
+  const m = session.metadata || {};
+  const total = (Number(session.amount_total) / 100).toFixed(2);
+
+  const customer = {
+    name: line(m.name, 100),
+    email: email(m.email) || email(session.customer_details && session.customer_details.email) || email(session.customer_email),
+    phone: line(m.phone, 40),
+    address: line(m.address, 200),
+    date: line(m.date, 10),
+    location: line(m.location, 100),
+    guests: line(m.guests, 20),
+    comments: text(m.comments, 400),
+  };
+
+  const items = line(m.items, 450);
+
+  try {
+    await recordBooking({
+      date: customer.date,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+      location: customer.location,
+      guests: customer.guests,
+      comments: customer.comments,
+      items,
+      total,
+      payment: "paid",
+      stripeSessionId: session.id,
+    });
+  } catch (error) {
+    console.error("Booking save failed:", error);
+  }
+
+  if (DISCORD_WEBHOOK) {
     const discordMessage = {
-      embeds: [{
-        title: "✅ New Booking - PAID ONLINE 💳",
-        color: 5763719, // vert
-        fields: [
-          { name: "👤 Customer Name", value: m.name || "N/A", inline: true },
-          { name: "📧 Email", value: m.email || session.customer_email || "N/A", inline: true },
-          { name: "📍 Address", value: m.address || "N/A", inline: false },
-          { name: "📱 Phone", value: m.phone || "N/A", inline: true },
-          { name: "📅 Event Date", value: m.date || "N/A", inline: true },
-          { name: "📌 Event Location", value: m.location || "N/A", inline: false },
-          { name: "👥 Number of Guests", value: m.guests || "N/A", inline: true },
-          { name: "💬 Comments", value: m.comments || "No comments", inline: false },
-          { name: "🛒 Items Ordered", value: m.items || "No items", inline: false },
-          { name: "💰 Total Paid", value: "$" + total + " ✅ PAID", inline: true },
-          { name: "⏰ Booking Time", value: new Date().toLocaleString("en-US"), inline: true },
-        ],
-      }],
+      allowed_mentions: { parse: [] },
+      embeds: [
+        {
+          title: "New Booking - PAID ONLINE",
+          color: 5763719,
+          fields: [
+            { name: "Customer Name", value: customer.name || "N/A", inline: true },
+            { name: "Email", value: customer.email || "N/A", inline: true },
+            { name: "Address", value: customer.address || "N/A", inline: false },
+            { name: "Phone", value: customer.phone || "N/A", inline: true },
+            { name: "Event Date", value: customer.date || "N/A", inline: true },
+            { name: "Event Location", value: customer.location || "N/A", inline: false },
+            { name: "Number of Guests", value: customer.guests || "N/A", inline: true },
+            { name: "Comments", value: customer.comments || "No comments", inline: false },
+            { name: "Items Ordered", value: items || "No items", inline: false },
+            { name: "Total Paid", value: "$" + total + " (PAID)", inline: true },
+            { name: "Booking Time", value: new Date().toLocaleString("en-US"), inline: true },
+          ],
+        },
+      ],
     };
 
     try {
-      await fetch(DISCORD_WEBHOOK, {
+      const response = await fetch(DISCORD_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(discordMessage),
       });
-      console.log("✅ Réservation payée envoyée à Discord!");
-    } catch (err) {
-      console.error("❌ Erreur Discord:", err);
+      if (!response.ok) console.error("Discord notification failed:", response.status);
+    } catch (error) {
+      console.error("Discord notification error:", error);
     }
+  }
 
-    try {
-      await sendBookingEmail({
-        title: "New Booking - PAID ONLINE",
-        customer: {
-          name: m.name || "",
-          email: m.email || session.customer_email || "",
-          address: m.address || "",
-          phone: m.phone || "",
-          date: m.date || "",
-          location: m.location || "",
-          guests: m.guests || "",
-          comments: m.comments || "",
-        },
-        itemsText: m.items || "No items",
-        total,
-        paidLabel: "✅ PAID",
-      });
-      console.log("✅ Réservation payée envoyée par email!");
-    } catch (emailError) {
-      console.error("❌ Erreur email:", emailError);
-    }
+  try {
+    await sendBookingEmail({
+      title: "New Booking - PAID ONLINE",
+      customer,
+      itemsText: items || "No items",
+      total,
+      paidLabel: "PAID",
+    });
+  } catch (error) {
+    console.error("Email notification failed:", error);
   }
 
   return { statusCode: 200, body: JSON.stringify({ received: true }) };

@@ -2,9 +2,19 @@
   "name": "mainlinebounce",
   "version": "1.0.0",
   "description": "Main Line Bounce - Inflatable rentals",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@netlify/blobs": "^10.7.9",
-    "nodemailer": "^6.9.15",
-    "stripe": "^14.0.0"
+    "@netlify/blobs": "^10.7.13",
+    "nodemailer": "^10.2.1",
+    "stripe": "^14.25.0"
+  },
+  "overrides": {
+    "@fastify/busboy": "^3.2.4",
+    "image-size": "^2.0.4",
+    "qs": "^6.16.1",
+    "@netlify/otel": "^6.0.6"
   }
 }

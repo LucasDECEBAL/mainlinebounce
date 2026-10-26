@@ -131,7 +131,9 @@ mainlinebounce/
 ├── js/
 │   ├── main.js                 Navigation, cart, shared UI helpers
 │   ├── content.js              CMS renderer (banners, catalogs, product, FAQ)
-│   └── checkout.js             Checkout summary and Stripe redirect
+│   ├── checkout.js             Checkout summary and Stripe redirect
+│   └── vendor/
+│       └── xlsx.full.min.js    SheetJS, served locally (no CDN dependency)
 ├── images/
 ├── netlify/
 │   └── functions/
@@ -142,13 +144,18 @@ mainlinebounce/
 │       ├── create-checkout.js
 │       ├── stripe-webhook.js
 │       ├── send-booking.js
-│       └── booking-email.js
+│       ├── booking-email.js
+│       └── lib/
+│           ├── security.js     Auth, rate limiting, input and URL validation
+│           └── catalog.js      Server-side catalog and cart validation
 ├── docs/screenshots/
 ├── trailer-video/              Self-contained Remotion trailer project
 └── netlify.toml
 ```
 
 ## Getting started
+
+Requires **Node 20 or newer**.
 
 ```bash
 git clone https://github.com/KrustylaD/mainlinebounce.git
@@ -227,6 +234,35 @@ A few conventions worth knowing:
   cross-sell on another rental (six maximum).
 - Stored content is normalized on read, so older records keep working after model changes.
 
+## Security
+
+The site handles payments and customer data, so the code follows a few rules:
+
+- **Server-side pricing.** Checkout and pay-on-site totals are rebuilt from the stored
+  catalog; prices, names and totals sent by the browser are ignored.
+- **Fail-closed admin auth.** Every admin endpoint requires the `x-admin-key` header,
+  compared in constant time. If `ADMIN_KEY` is missing, requests are rejected.
+- **Validated input.** Payloads are size-limited, fields are length-capped, emails and
+  dates are checked, and CMS links/images are restricted to safe schemes (`https`,
+  `http`, `mailto`, `tel`, relative paths).
+- **No stored XSS.** CMS content is HTML-escaped when rendered, banner text uses
+  `textContent`, and cart data is sanitized before display.
+- **Safe notifications.** Emails escape customer input and reject header-injection
+  addresses; Discord notifications disable mentions; Excel exports neutralize formulas.
+- **Stripe webhook verification.** Signatures are verified against the raw body, unpaid
+  sessions are ignored and bookings are idempotent per session ID.
+- **Rate limiting.** Checkout, notifications and admin login are throttled per IP.
+- **Hardened headers.** `netlify.toml` sets CSP, HSTS, `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, Referrer-Policy and Permissions-Policy;
+  `/admin.html` is marked `noindex`.
+- **Dependencies.** Node 20, `npm audit` clean, SheetJS served from the repository
+  instead of a CDN, and `node_modules/` is no longer committed.
+
+Residual considerations: the CSP still allows `'unsafe-inline'` for scripts and styles
+because the existing pages use inline handlers; the admin key lives in `sessionStorage`;
+rate limits are per function instance. A stricter setup would move inline scripts to
+files and adopt a nonce-based CSP.
+
 ## Trailer video (Remotion)
 
 `trailer-video/` is a standalone Remotion project used to produce the marketing trailer.
@@ -246,7 +282,7 @@ Rendered files and `node_modules` are git-ignored.
 
 - No build step, no bundler, no framework: the deployed site is exactly what is in the
   repository.
-- `js/content.js` is versioned with a query string (`?v=`) to bust caches after content-related
-  releases.
+- `js/content.js`, `js/main.js` and `js/checkout.js` are versioned with a query string
+  (`?v=`) to bust caches after releases.
 - Legacy static product pages are kept for old links; the current catalog always links to the
   dynamic `product.html?id=...`.

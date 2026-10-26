@@ -6,4 +6,23 @@
   node_bundler = "esbuild"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
+
+# Security headers for every response.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), usb=(), payment=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    # Inline scripts/styles are still used by the existing pages, hence
+    # 'unsafe-inline'. Everything else is restricted to known hosts.
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com https://www.google-analytics.com https://region1.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net; frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com https://*.doubleclick.net https://*.google.com https://*.g.doubleclick.net; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; upgrade-insecure-requests"
+
+# The admin panel is private: keep it out of search engines.
+[[headers]]
+  for = "/admin.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

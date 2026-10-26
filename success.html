@@ -42,11 +42,20 @@
 
 <script>
   // ✅ Récupère les infos client + le total avant de vider le panier
-  const pending = JSON.parse(localStorage.getItem("mlb_pending_booking")) || {};
-  const total = parseFloat(pending.total) || 1.0;
+  let pending = {};
+  try {
+    pending = JSON.parse(localStorage.getItem("mlb_pending_booking")) || {};
+  } catch (e) {
+    pending = {};
+  }
+  const parsedTotal = Number(pending.total);
+  const total = Number.isFinite(parsedTotal) && parsedTotal > 0 && parsedTotal <= 100000
+    ? parsedTotal
+    : 1.0;
 
-  // ✅ Enhanced Conversions : on redonne les données client à Google
-  if (typeof gtag !== "undefined" && pending.email) {
+  // ✅ Enhanced Conversions : on redonne les données client à Google (avec consentement)
+  const hasConsent = localStorage.getItem("mlb_data_consent") === "true";
+  if (typeof gtag !== "undefined" && pending.email && hasConsent) {
     const nameParts = (pending.name || "").trim().split(" ");
     gtag('set', 'user_data', {
       "email": pending.email || "",

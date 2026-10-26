@@ -5,12 +5,34 @@
 const CART_KEY = 'mlb_cart';
 const MAX_QTY = 100; // Quantité maximum par article
 
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /* ============================================
    PANIER - Lecture / écriture localStorage
    ============================================ */
 function getCart() {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
+    const raw = JSON.parse(localStorage.getItem(CART_KEY));
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter(item => item && typeof item === 'object')
+      .map(item => ({
+        id: String(item.id == null ? '' : item.id).slice(0, 60),
+        name: String(item.name == null ? '' : item.name).slice(0, 120),
+        price: Number.isFinite(Number(item.price)) && Number(item.price) >= 0
+          ? Number(item.price)
+          : 0,
+        image: String(item.image == null ? '' : item.image).slice(0, 500),
+        qty: Math.min(MAX_QTY, Math.max(1, parseInt(item.qty, 10) || 1))
+      }))
+      .filter(item => item.id);
   } catch (e) {
     return [];
   }
@@ -27,7 +49,7 @@ function addToCart(product) {
   const existing = cart.find(item => item.id === product.id);
 
   if (existing) {
-    existing.qty += 1;
+    existing.qty = Math.min(MAX_QTY, existing.qty + 1);
   } else {
     cart.push({
       id: product.id,
@@ -148,42 +170,35 @@ function renderCartPage() {
   if (summary) summary.style.display = 'block';
 
   list.innerHTML = cart.map(function (item) {
-    const lineTotal = (item.price * item.qty).toFixed(0);
-    // ✅ Échapper les textes pour éviter le XSS
-    const escapedName = document.createElement('div').appendChild(
-      document.createTextNode(item.name)
-    ).parentNode.innerHTML;
-    const escapedImage = document.createElement('div').appendChild(
-      document.createTextNode(item.image)
-    ).parentNode.innerHTML;
-    // Utiliser data-id pour éviter l'interpolation d'ID dans les événements
-    const dataId = document.createElement('div').appendChild(
-      document.createTextNode(item.id)
-    ).parentNode.innerHTML;
+    const price = Number(item.price) || 0;
+    const lineTotal = (price * item.qty).toFixed(0);
+    const safeName = escapeHtml(item.name);
+    const safeImage = escapeHtml(item.image);
+    const safeId = escapeHtml(item.id);
     return `
       <div class="cart-item product-card">
         <div class="product-image cart-item-img">
-          <img src="${escapedImage}" alt="${escapedName}" />
+          <img src="${safeImage}" alt="${safeName}" />
         </div>
         <div class="cart-item-info">
-          <h3>${escapedName}</h3>
-          <span class="price-tag">$${item.price}</span>
+          <h3>${safeName}</h3>
+          <span class="price-tag">$${price}</span>
           <div class="cart-qty">
-            <button class="btn btn-outline btn-sm" data-action="decrease" data-item-id="${dataId}">−</button>
+            <button class="btn btn-outline btn-sm" data-action="decrease" data-item-id="${safeId}">−</button>
             <input
               type="number"
               class="cart-qty-input"
               value="${item.qty}"
               min="1"
               max="${MAX_QTY}"
-              data-item-id="${dataId}"
+              data-item-id="${safeId}"
             />
-            <button class="btn btn-outline btn-sm" data-action="increase" data-item-id="${dataId}">+</button>
+            <button class="btn btn-outline btn-sm" data-action="increase" data-item-id="${safeId}">+</button>
           </div>
         </div>
         <div class="cart-item-right">
           <span class="cart-line-total">$${lineTotal}</span>
-          <button class="cart-remove" data-action="remove" data-item-id="${dataId}">Remove</button>
+          <button class="cart-remove" data-action="remove" data-item-id="${safeId}">Remove</button>
         </div>
       </div>
     `;

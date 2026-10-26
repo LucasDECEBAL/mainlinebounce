@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/style.css">
 
   <!-- SheetJS : génération du fichier Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="js/vendor/xlsx.full.min.js"></script>
 
   <style>
   /* ===== ADMIN — matches the Main Line Bounce theme ===== */
@@ -652,6 +652,11 @@
         headers: { "Content-Type": "application/json", "x-admin-key": key },
         body: "{}"
       });
+      if (res.status === 429) {
+        const error = new Error("Too many attempts");
+        error.status = 429;
+        throw error;
+      }
       return res.ok;
     }
 
@@ -675,7 +680,11 @@
           return;
         }
       } catch (e) {
-        status.textContent = "❌ Network error";
+        if (e && e.status === 429) {
+          status.textContent = "Too many attempts. Please wait a few minutes and try again.";
+        } else {
+          status.textContent = "❌ Network error";
+        }
         status.style.color = "#e63329";
         return;
       }
@@ -1730,19 +1739,19 @@
 
       const rows = list.map(function (b) {
         return {
-          "Booking ID": b.id,
-          "Booked at": formatDateTime(b.createdAt),
-          "Event date": b.eventDate || "",
-          "Customer": b.name || "",
-          "Phone": b.phone || "",
-          "Email": b.email || "",
-          "Address": b.address || "",
-          "Location": b.location || "",
-          "Guests": b.guests || "",
-          "Items": String(b.items || "").replace(/\n/g, " | "),
+          "Booking ID": excelSafe(b.id),
+          "Booked at": excelSafe(formatDateTime(b.createdAt)),
+          "Event date": excelSafe(b.eventDate || ""),
+          "Customer": excelSafe(b.name || ""),
+          "Phone": excelSafe(b.phone || ""),
+          "Email": excelSafe(b.email || ""),
+          "Address": excelSafe(b.address || ""),
+          "Location": excelSafe(b.location || ""),
+          "Guests": excelSafe(b.guests || ""),
+          "Items": excelSafe(String(b.items || "").replace(/\n/g, " | ")),
           "Total": Number(b.total) || 0,
           "Payment": b.payment === "paid" ? "Paid online" : "Pay on site",
-          "Comments": b.comments || ""
+          "Comments": excelSafe(b.comments || "")
         };
       });
 
@@ -1774,6 +1783,11 @@
 
     function escapeAttr(value) {
       return escapeHtml(value);
+    }
+
+    function excelSafe(value) {
+      const s = String(value == null ? "" : value);
+      return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
     }
 
     function money(value) {
