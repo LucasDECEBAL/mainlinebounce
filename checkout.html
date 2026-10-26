@@ -148,7 +148,10 @@
     <div class="modal-icon" id="modalIcon">⚠️</div>
     <h3 class="modal-title" id="modalTitle">Date non disponible</h3>
     <p class="modal-text" id="modalText">Sorry, this date is not available for one of the items in your cart. Please choose another date.</p>
-    <button class="modal-btn" id="modalClose">OK</button>
+    <div class="modal-actions">
+      <a class="modal-btn modal-btn-secondary" id="modalAction" href="cart.html" style="display:none;">View cart</a>
+      <button class="modal-btn" id="modalClose">OK</button>
+    </div>
   </div>
 </div>
 
@@ -171,10 +174,22 @@
 
 <!-- ✅ FONCTION POPUP GLOBALE (utilisée par checkout.js + blocage dates) -->
 <script>
-function showModal(message, title, icon) {
+function showModal(message, title, icon, action) {
   document.getElementById("modalTitle").textContent = title || "Oops!";
   document.getElementById("modalText").textContent = message || "";
   document.getElementById("modalIcon").textContent = icon || "⚠️";
+
+  const actionBtn = document.getElementById("modalAction");
+  if (actionBtn) {
+    if (action && action.href) {
+      actionBtn.textContent = action.label || "View cart";
+      actionBtn.href = action.href;
+      actionBtn.style.display = "";
+    } else {
+      actionBtn.style.display = "none";
+    }
+  }
+
   document.getElementById("customModal").classList.add("show");
 }
 function hideModal() {
@@ -195,60 +210,81 @@ document.getElementById("customModal").addEventListener("click", function (e) {
   if (!dateInput) return;
 
   let allBlocked = {};
-  let relevantDates = [];
 
   const today = new Date().toISOString().split("T")[0];
   dateInput.setAttribute("min", today);
 
-  function getCartItemIds() {
+  function getCartItems() {
     try {
       const cart = JSON.parse(localStorage.getItem("mlb_cart")) || [];
-      return cart.map(i => i.id);
+      return cart.filter(function (item) { return item && item.id; });
     } catch (e) {
       return [];
     }
   }
 
-  function computeRelevantDates() {
-    const ids = getCartItemIds();
-    const set = new Set();
-    (allBlocked["ALL"] || []).forEach(d => set.add(d));
-    ids.forEach(id => {
-      (allBlocked[id] || []).forEach(d => set.add(d));
+  /* Renvoie les articles du panier bloqués à cette date (ou un blocage global) */
+  function blockedInfoForDate(date) {
+    if ((allBlocked["ALL"] || []).indexOf(date) !== -1) {
+      return { global: true, names: [] };
+    }
+
+    const names = [];
+    getCartItems().forEach(function (item) {
+      if ((allBlocked[item.id] || []).indexOf(date) !== -1) {
+        names.push(item.name || item.id);
+      }
     });
-    relevantDates = Array.from(set);
+
+    return { global: false, names: names };
+  }
+
+  function showBlockedModal(info) {
+    let message;
+
+    if (info.global) {
+      message =
+        "Sorry, our whole inventory is unavailable on this date.\n\n" +
+        "Please choose another date.";
+    } else {
+      message =
+        "Sorry, " + (info.names.length > 1 ? "these items are" : "this item is") +
+        " not available on this date:\n\n" +
+        info.names.map(function (name) { return "• " + name; }).join("\n") +
+        "\n\nPlease remove " + (info.names.length > 1 ? "them" : "it") +
+        " from your cart or choose another date.";
+    }
+
+    showModal(message, "Date not available", "📅", { label: "View cart", href: "cart.html" });
   }
 
   fetch(API)
-    .then(r => r.json())
-    .then(data => {
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
       allBlocked = data || {};
-      computeRelevantDates();
     })
-    .catch(() => { allBlocked = {}; relevantDates = []; });
+    .catch(function () {
+      allBlocked = {};
+    });
 
   dateInput.addEventListener("change", function () {
-    computeRelevantDates();
-    if (relevantDates.includes(dateInput.value)) {
-      showModal(
-        "Sorry, this date is not available for one of the items in your cart. Please choose another date.",
-        "Date not available",
-        "📅"
-      );
+    if (!dateInput.value) return;
+
+    const info = blockedInfoForDate(dateInput.value);
+    if (info.global || info.names.length > 0) {
+      showBlockedModal(info);
       dateInput.value = "";
     }
   });
 
   if (form) {
     form.addEventListener("submit", function (e) {
-      computeRelevantDates();
-      if (dateInput.value && relevantDates.includes(dateInput.value)) {
+      if (!dateInput.value) return;
+
+      const info = blockedInfoForDate(dateInput.value);
+      if (info.global || info.names.length > 0) {
         e.preventDefault();
-        showModal(
-          "Sorry, this date is not available for one of the items in your cart. Please choose another date.",
-          "Date not available",
-          "📅"
-        );
+        showBlockedModal(info);
       }
     });
   }

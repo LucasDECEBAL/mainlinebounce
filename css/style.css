@@ -1367,6 +1367,7 @@ ul   { list-style: none; }
   font-size: 0.95rem;
   color: var(--color-gray);
   line-height: 1.6;
+  white-space: pre-line;
   margin: 0 0 26px;
 }
 
