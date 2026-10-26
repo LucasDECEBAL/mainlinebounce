@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { getBookings, deleteBooking } = require("./bookings-store");
+const { getBookings, deleteBooking, ensureHistoricalBookings } = require("./bookings-store");
 
 exports.handler = async (event) => {
   const allowedOrigins = [
@@ -40,6 +40,12 @@ exports.handler = async (event) => {
 
   /* 📖 GET → liste des bookings (admin) */
   if (event.httpMethod === "GET") {
+    try {
+      await ensureHistoricalBookings(); // import unique des clients historiques
+    } catch (e) {
+      console.error("Historical import error:", e);
+    }
+
     const list = await getBookings();
     list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     return { statusCode: 200, headers, body: JSON.stringify({ bookings: list }) };

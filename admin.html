@@ -291,6 +291,11 @@
     min-width: 200px;
     margin: 0;
   }
+  .bookings-toolbar select{
+    width: auto;
+    margin: 0;
+    padding: 10px 14px;
+  }
   .toolbar-btn{
     background: #fff;
     border: 2px solid var(--color-pink-pale);
@@ -419,6 +424,14 @@
           <h3>Bookings</h3>
           <div class="bookings-toolbar">
             <input type="text" id="bookingsSearch" placeholder="Search name, email, phone, location…">
+            <select id="bookingsCountry">
+              <option value="all">All countries</option>
+            </select>
+            <select id="bookingsPayment">
+              <option value="all">All payments</option>
+              <option value="paid">Paid online</option>
+              <option value="onsite">Pay on site</option>
+            </select>
             <button class="toolbar-btn" id="refreshBookingsBtn">↻ Refresh</button>
             <button class="toolbar-btn primary" id="exportBookingsBtn">⬇ Export Excel</button>
           </div>
@@ -1112,6 +1125,8 @@
     let bookingsLoaded = false;
     let bookingSort = { key: "createdAt", dir: -1 };
     let bookingSearch = "";
+    let bookingFilterCountry = "all";
+    let bookingFilterPayment = "all";
 
     const BOOKING_COLUMNS = [
       { key: "createdAt", label: "Booked" },
@@ -1120,6 +1135,7 @@
       { key: "phone", label: "Phone" },
       { key: "email", label: "Email" },
       { key: "location", label: "Location" },
+      { key: "country", label: "Country" },
       { key: "guests", label: "Guests" },
       { key: "items", label: "Items" },
       { key: "total", label: "Total" },
@@ -1157,9 +1173,23 @@
       const q = bookingSearch.trim().toLowerCase();
       let list = bookings.slice();
 
+      if (bookingFilterCountry !== "all") {
+        list = list.filter(function (b) {
+          return String(b.country || "").toLowerCase() === bookingFilterCountry.toLowerCase();
+        });
+      }
+
+      if (bookingFilterPayment !== "all") {
+        list = list.filter(function (b) {
+          return bookingFilterPayment === "paid"
+            ? b.payment === "paid"
+            : b.payment !== "paid";
+        });
+      }
+
       if (q) {
         list = list.filter(function (b) {
-          return [b.name, b.email, b.phone, b.location, b.items, b.address]
+          return [b.name, b.email, b.phone, b.location, b.country, b.items, b.address]
             .some(function (v) { return String(v || "").toLowerCase().indexOf(q) !== -1; });
         });
       }
@@ -1190,6 +1220,22 @@
     function renderBookings() {
       const tableRoot = document.getElementById("bookingsTable");
       const summary = document.getElementById("bookingsSummary");
+      const countrySelect = document.getElementById("bookingsCountry");
+
+      // Remplit le filtre pays (valeurs uniques)
+      const countries = Array.from(
+        new Set(bookings.map(function (b) { return b.country; }).filter(Boolean))
+      ).sort();
+
+      const currentCountry = countrySelect.value;
+      countrySelect.innerHTML =
+        '<option value="all">All countries</option>' +
+        countries.map(function (c) {
+          return '<option value="' + escapeAttr(c) + '">' + escapeHtml(c) + "</option>";
+        }).join("");
+      countrySelect.value = countries.indexOf(currentCountry) !== -1 ? currentCountry : "all";
+      bookingFilterCountry = countrySelect.value;
+
       const list = getFilteredBookings();
 
       const paidTotal = list
@@ -1226,6 +1272,7 @@
             "<td>" + escapeHtml(b.phone || "—") + "</td>" +
             "<td>" + escapeHtml(b.email || "—") + "</td>" +
             "<td>" + escapeHtml(b.location || "—") + "</td>" +
+            "<td>" + escapeHtml(b.country || "—") + "</td>" +
             "<td>" + escapeHtml(b.guests || "—") + "</td>" +
             '<td style="max-width:260px;">' + escapeHtml(String(b.items || "").replace(/\n/g, " · ")) + "</td>" +
             "<td><strong>" + money(Number(b.total) || 0) + "</strong></td>" +
@@ -1319,6 +1366,7 @@
           "Email": b.email || "",
           "Address": b.address || "",
           "Location": b.location || "",
+          "Country": b.country || "",
           "Guests": b.guests || "",
           "Items": String(b.items || "").replace(/\n/g, " | "),
           "Total": Number(b.total) || 0,
@@ -1330,7 +1378,7 @@
       const ws = XLSX.utils.json_to_sheet(rows);
       ws["!cols"] = [
         { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 26 },
-        { wch: 28 }, { wch: 20 }, { wch: 8 }, { wch: 50 }, { wch: 10 }, { wch: 14 }, { wch: 40 }
+        { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 8 }, { wch: 50 }, { wch: 10 }, { wch: 14 }, { wch: 40 }
       ];
 
       const wb = XLSX.utils.book_new();
@@ -1403,6 +1451,14 @@
     document.getElementById("exportBookingsBtn").addEventListener("click", exportBookingsExcel);
     document.getElementById("bookingsSearch").addEventListener("input", function (e) {
       bookingSearch = e.target.value;
+      renderBookings();
+    });
+    document.getElementById("bookingsCountry").addEventListener("change", function (e) {
+      bookingFilterCountry = e.target.value;
+      renderBookings();
+    });
+    document.getElementById("bookingsPayment").addEventListener("change", function (e) {
+      bookingFilterPayment = e.target.value;
       renderBookings();
     });
 
