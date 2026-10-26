@@ -1,0 +1,252 @@
+<h1 align="center">Main Line Bounce</h1>
+
+<p align="center">
+  <strong>Party rental storefront with a built-in CMS.</strong><br />
+  Bounce houses, water slides, silent disco and party add-ons — booked online with Stripe.
+</p>
+
+<p align="center">
+  <a href="https://mainlinebounce.com"><strong>View the live site</strong></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/frontend-HTML%20%2B%20CSS%20%2B%20JS-e91e63?style=flat-square" alt="Frontend" />
+  <img src="https://img.shields.io/badge/backend-Netlify%20Functions-00c7b7?style=flat-square" alt="Netlify Functions" />
+  <img src="https://img.shields.io/badge/payments-Stripe-635bff?style=flat-square" alt="Stripe" />
+</p>
+
+<p align="center">
+  <a href="https://mainlinebounce.com">
+    <img src="docs/screenshots/home.png" alt="Main Line Bounce homepage" width="100%" />
+  </a>
+</p>
+
+## Overview
+
+A production website for a family-run party rental business on the Philadelphia Main Line.
+Customers browse **inflatables**, **add-ons** and **silent disco** packages, build a cart, pick
+a date and pay online. The owner manages every price, photo, banner, FAQ entry and booking from
+a private admin page — no code changes, no redeploys.
+
+There is no framework and no build step for the website: plain HTML, CSS and vanilla JavaScript
+up front, Netlify Functions and Netlify Blobs at the back, Stripe for payments.
+
+- **Storefront:** https://mainlinebounce.com
+- **Admin:** https://mainlinebounce.com/admin.html
+
+## Features
+
+**Storefront**
+
+- Three independent collections — Inflatables, Add-ons and Silent Disco — each with its own
+  page, ordering and promo banner
+- Product detail pages generated from the CMS (`product.html?id=...`)
+- Cross-sells: any rental can offer up to six add-ons
+- Availability badges, "limited time" badges and "Call for price" items
+- Cart, date picker with blocked dates and Stripe Checkout
+- FAQ page driven by the CMS, with a static fallback
+- Responsive mobile-first layout and Google Ads conversion tracking
+
+**Admin (`/admin.html`)**
+
+- Single private key, verified server side with a timing-safe comparison
+- Products: create, edit and delete; page, price, photo, dimensions, badge, availability,
+  add-ons and per-page ordering
+- Banners: text, title, sub-text, button label and link per page, with an on/off switch
+- FAQ: add, reorder and edit questions
+- Blocked dates: block a date globally or for a single item
+- Bookings: search, filter, sort, edit, delete, multi-select and Excel export
+- Everything is persisted in Netlify Blobs — content changes never touch git
+
+## Screenshots
+
+### Storefront
+
+<p align="center">
+  <img src="docs/screenshots/inflatables.png" alt="Inflatables catalog" width="100%" />
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/add-ons.png" alt="Add-ons and equipment" width="100%" /></td>
+    <td width="50%"><img src="docs/screenshots/silent-disco.png" alt="Silent disco packages" width="100%" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/product.png" alt="Product detail page" width="100%" /></td>
+    <td width="50%"><img src="docs/screenshots/faq.png" alt="FAQ page" width="100%" /></td>
+  </tr>
+</table>
+
+### Admin
+
+<p align="center">
+  <img src="docs/screenshots/admin-products.png" alt="Products admin with page filter" width="100%" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/admin-bookings.png" alt="Bookings admin with search, filters and Excel export" width="100%" />
+</p>
+
+## Architecture
+
+```mermaid
+flowchart LR
+  C[Customer] --> S[Static site]
+  A[Admin] --> S
+  S -->|/.netlify/functions| F[Netlify Functions]
+  F --> B[(Netlify Blobs)]
+  F --> P[Stripe]
+  P -->|webhook| F
+  F --> M[SMTP / Discord]
+```
+
+| Function | Role | Storage |
+| --- | --- | --- |
+| `site-content` | Banners, products and FAQ (public read, key-protected write) | `site-content` blob |
+| `blocked-dates` | Dates blocked globally or for one item | `blocked-dates` blob |
+| `bookings` | Admin CRUD for bookings | `bookings` blob |
+| `create-checkout` | Creates a Stripe Checkout session | — |
+| `stripe-webhook` | Records paid orders, sends notifications | `bookings` blob |
+| `send-booking` / `booking-email` | Email and Discord notifications | — |
+
+The frontend keeps working without the backend: `js/content.js` ships a default content set and
+renders it when the content API is unreachable, which makes local design work painless.
+
+## Project structure
+
+```text
+mainlinebounce/
+├── index.html                  Home: hero + editable promo banner
+├── inflatables.html            Catalog rendered from the CMS
+├── add-ons.html                Catalog rendered from the CMS
+├── silent-disco.html           Catalog rendered from the CMS
+├── product.html                Dynamic product detail (?id=...)
+├── faq.html                    Dynamic FAQ with static fallback
+├── cart.html
+├── checkout.html               Cart, customer details, Stripe payment
+├── success.html
+├── about.html
+├── admin.html                  Single-page admin panel
+├── css/style.css
+├── js/
+│   ├── main.js                 Navigation, cart, shared UI helpers
+│   ├── content.js              CMS renderer (banners, catalogs, product, FAQ)
+│   └── checkout.js             Checkout summary and Stripe redirect
+├── images/
+├── netlify/
+│   └── functions/
+│       ├── site-content.js
+│       ├── bookings.js
+│       ├── bookings-store.js
+│       ├── blocked-dates.js
+│       ├── create-checkout.js
+│       ├── stripe-webhook.js
+│       ├── send-booking.js
+│       └── booking-email.js
+├── docs/screenshots/
+├── trailer-video/              Self-contained Remotion trailer project
+└── netlify.toml
+```
+
+## Getting started
+
+```bash
+git clone https://github.com/KrustylaD/mainlinebounce.git
+cd mainlinebounce
+npm install
+npx netlify dev
+```
+
+The site is served at `http://localhost:8888`, the admin at
+`http://localhost:8888/admin.html`.
+
+- The storefront renders with fallback content even without the functions.
+- The admin, blocked dates and checkout need `netlify dev` (or a Netlify deploy) for the
+  functions and Blobs emulation.
+
+## Environment variables
+
+| Variable | Used by | Description |
+| --- | --- | --- |
+| `ADMIN_KEY` | `site-content`, `bookings`, `blocked-dates`, admin login | Secret admin key |
+| `NETLIFY_SITE_ID` | all functions | Site ID for Blobs access |
+| `NETLIFY_BLOBS_TOKEN` | all functions | Personal token for Blobs access |
+| `STRIPE_SECRET_KEY` | `create-checkout`, `stripe-webhook` | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | `stripe-webhook` | Webhook signature verification |
+| `SITE_URL` | `create-checkout`, CORS | Public site URL used for redirects |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | `booking-email` | Outgoing mail server |
+| `SMTP_FROM` | `booking-email` | Sender address |
+| `BOOKING_NOTIFICATION_EMAILS` | `booking-email` | Recipients, comma separated |
+| `DISCORD_WEBHOOK` | `send-booking` | Optional Discord notification webhook |
+
+The Stripe **publishable** key is set in `js/checkout.js`; it is public by design.
+
+## Payments flow
+
+1. The customer fills in the checkout form and is redirected to Stripe Checkout.
+2. Stripe sends a `checkout.session.completed` event to
+   `/.netlify/functions/stripe-webhook`.
+3. The webhook records the booking in the `bookings` blob and sends the notification email
+   (and Discord message, when configured).
+4. The booking shows up in the admin, where it can be edited, exported or deleted.
+   Bookings added by hand from the admin follow the same storage path.
+
+## Deployment
+
+The repository is built for Netlify:
+
+1. Connect the GitHub repository to Netlify. `netlify.toml` already sets the publish
+   directory (`.`), the functions directory and Node 18.
+2. Add the environment variables listed above in **Site settings → Environment variables**.
+3. Point the Stripe webhook to
+   `https://mainlinebounce.com/.netlify/functions/stripe-webhook`.
+4. Push to `main` — Netlify deploys the static files and functions automatically.
+
+Content, bookings and blocked dates live in Netlify Blobs, so they survive redeploys and are
+independent from the git history.
+
+## Editing the site
+
+Open `/admin.html` and enter the admin key. Each tab maps to one part of the public site:
+
+| Tab | What it controls |
+| --- | --- |
+| Blocked dates | Dates customers cannot book, globally or per item |
+| Bookings | Every order: search, filter, edit, export to Excel |
+| Banners | Promo bar text, button and link on each page |
+| FAQ | Questions and answers on `/faq.html` |
+| Products | The three catalogs and their detail pages |
+
+A few conventions worth knowing:
+
+- **Positions are per page.** Products are ordered independently in Inflatables, Add-ons and
+  Silent Disco; inserting an item shifts the slot and renumbers the list.
+- **Empty price means "Call for price."** The storefront shows a call button instead of an
+  add-to-cart action.
+- **Add-ons are products too.** Anything in the Add-ons collection can be offered as a
+  cross-sell on another rental (six maximum).
+- Stored content is normalized on read, so older records keep working after model changes.
+
+## Trailer video (Remotion)
+
+`trailer-video/` is a standalone Remotion project used to produce the marketing trailer.
+
+```bash
+cd trailer-video
+npm install
+npm run studio          # preview
+npm run render          # 16:9 trailer  → out/trailer-landscape.mp4
+npm run render:vertical # 9:16 trailer  → out/trailer-vertical.mp4
+npm run still           # cover image   → out/cover.png
+```
+
+Rendered files and `node_modules` are git-ignored.
+
+## Notes
+
+- No build step, no bundler, no framework: the deployed site is exactly what is in the
+  repository.
+- `js/content.js` is versioned with a query string (`?v=`) to bust caches after content-related
+  releases.
+- Legacy static product pages are kept for old links; the current catalog always links to the
+  dynamic `product.html?id=...`.
