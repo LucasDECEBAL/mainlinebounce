@@ -325,6 +325,18 @@
     color: var(--color-gray);
     margin-bottom: 10px;
   }
+  .bookings-table th:first-child,
+  .bookings-table td:first-child{
+    width: 28px;
+    padding-right: 0;
+  }
+  .booking-row-check,
+  #bookingSelectAll{
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-pink);
+  }
   .articles-table th.sortable{
     cursor: pointer;
     user-select: none;
@@ -1170,6 +1182,7 @@
     let bookingSort = { key: "createdAt", dir: -1 };
     let bookingSearch = "";
     let bookingFilterPayment = "all";
+    let bookingSelection = new Set();
 
     const BOOKING_COLUMNS = [
       { key: "createdAt", label: "Booked" },
@@ -1203,6 +1216,12 @@
         const data = await res.json();
         bookings = data.bookings || [];
         bookingsLoaded = true;
+
+        const validIds = new Set(bookings.map(function (b) { return b.id; }));
+        Array.from(bookingSelection).forEach(function (id) {
+          if (!validIds.has(id)) bookingSelection.delete(id);
+        });
+
         status.textContent = "";
         renderBookings();
       } catch (e) {
@@ -1230,27 +1249,29 @@
         });
       }
 
+      list.sort(compareBookings);
+
+      return list;
+    }
+
+    function compareBookings(a, b) {
       const key = bookingSort.key;
       const dir = bookingSort.dir;
 
-      list.sort(function (a, b) {
-        let va = a[key];
-        let vb = b[key];
+      let va = a[key];
+      let vb = b[key];
 
-        if (key === "total") {
-          va = Number(va) || 0;
-          vb = Number(vb) || 0;
-        } else {
-          va = String(va || "").toLowerCase();
-          vb = String(vb || "").toLowerCase();
-        }
+      if (key === "total") {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      } else {
+        va = String(va || "").toLowerCase();
+        vb = String(vb || "").toLowerCase();
+      }
 
-        if (va < vb) return -dir;
-        if (va > vb) return dir;
-        return 0;
-      });
-
-      return list;
+      if (va < vb) return -dir;
+      if (va > vb) return dir;
+      return 0;
     }
 
     function renderBookings() {
@@ -1286,6 +1307,7 @@
 
         return (
           "<tr>" +
+            '<td><input type="checkbox" class="booking-row-check" data-booking-id="' + escapeAttr(b.id) + '"></td>' +
             "<td>" + escapeHtml(formatDateTime(b.createdAt)) + "</td>" +
             "<td>" + escapeHtml(b.eventDate || "—") + "</td>" +
             "<td><strong>" + escapeHtml(b.name || "—") + "</strong></td>" +
@@ -1305,8 +1327,9 @@
       }).join("");
 
       tableRoot.innerHTML =
-        '<table class="articles-table">' +
-          "<thead><tr>" + head + "<th></th></tr></thead>" +
+        '<table class="articles-table bookings-table">' +
+          '<thead><tr><th style="width:28px;"><input type="checkbox" id="bookingSelectAll" title="Select all"></th>' +
+          head + "<th></th></tr></thead>" +
           "<tbody>" + rows + "</tbody>" +
         "</table>";
 
@@ -1345,6 +1368,7 @@
             if (!res.ok) throw new Error("HTTP " + res.status);
 
             bookings = bookings.filter(function (b) { return b.id !== id; });
+            bookingSelection.delete(id);
             renderBookings();
           } catch (e) {
             const status = document.getElementById("bookingsStatus");
@@ -1353,6 +1377,71 @@
           }
         });
       });
+
+      tableRoot.querySelectorAll(".booking-row-check").forEach(function (box) {
+        box.addEventListener("change", function () {
+          const id = box.getAttribute("data-booking-id");
+          if (box.checked) bookingSelection.add(id);
+          else bookingSelection.delete(id);
+          updateSelectionUI();
+        });
+      });
+
+      const selectAll = document.getElementById("bookingSelectAll");
+      if (selectAll) {
+        selectAll.addEventListener("change", function () {
+          const visibleIds = getFilteredBookings().map(function (b) { return b.id; });
+          if (selectAll.checked) {
+            visibleIds.forEach(function (id) { bookingSelection.add(id); });
+          } else {
+            visibleIds.forEach(function (id) { bookingSelection.delete(id); });
+          }
+          updateSelectionUI();
+        });
+      }
+
+      updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+      const list = getFilteredBookings();
+      const visibleIds = list.map(function (b) { return b.id; });
+
+      document.querySelectorAll("#bookingsTable .booking-row-check").forEach(function (box) {
+        box.checked = bookingSelection.has(box.getAttribute("data-booking-id"));
+      });
+
+      const selectAll = document.getElementById("bookingSelectAll");
+      if (selectAll) {
+        const selectedVisible = visibleIds.filter(function (id) {
+          return bookingSelection.has(id);
+        }).length;
+        selectAll.checked = visibleIds.length > 0 && selectedVisible === visibleIds.length;
+        selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visibleIds.length;
+      }
+
+      const exportBtn = document.getElementById("exportBookingsBtn");
+      if (exportBtn) {
+        exportBtn.textContent = bookingSelection.size
+          ? "⬇ Export Excel (" + bookingSelection.size + ")"
+          : "⬇ Export Excel";
+      }
+
+      const summary = document.getElementById("bookingsSummary");
+      if (summary) {
+        const paidTotal = list
+          .filter(function (b) { return b.payment === "paid"; })
+          .reduce(function (s, b) { return s + (Number(b.total) || 0); }, 0);
+        const onsiteTotal = list
+          .filter(function (b) { return b.payment !== "paid"; })
+          .reduce(function (s, b) { return s + (Number(b.total) || 0); }, 0);
+
+        summary.textContent =
+          list.length + " booking" + (list.length === 1 ? "" : "s") +
+          " • " + money(paidTotal) + " paid online" +
+          " • " + money(onsiteTotal) + " pay on site" +
+          (bookingSelection.size ? " • " + bookingSelection.size + " selected" : "");
+      }
     }
 
     function openBookingForm(id) {
@@ -1471,7 +1560,13 @@
         return;
       }
 
-      const list = getFilteredBookings();
+      let list;
+      if (bookingSelection.size) {
+        list = bookings.filter(function (b) { return bookingSelection.has(b.id); });
+        list.sort(compareBookings);
+      } else {
+        list = getFilteredBookings();
+      }
       if (!list.length) {
         status.textContent = "❌ No bookings to export";
         status.style.color = "#e63329";
