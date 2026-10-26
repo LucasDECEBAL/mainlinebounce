@@ -407,13 +407,6 @@
           <label>Inflatable</label>
           <select id="item">
             <option value="ALL">🌐 ALL inflatables (global block)</option>
-            <option value="big-fun-xl">Big Fun XL</option>
-            <option value="dolphin-slide">Water Slide</option>
-            <option value="foam-machine">Foam Machine</option>
-            <option value="magic-castle">Magic Castle</option>
-            <option value="slip-and-slide">Slip and Slide</option>
-            <option value="superhero-combo">Super Hero Duo Combo</option>
-            <option value="tropical-paradise">Tropical Paradise</option>
           </select>
 
           <label>Date to block / unblock</label>
@@ -614,15 +607,8 @@
     const API_DATES = "/.netlify/functions/blocked-dates";
     const API_CONTENT = "/.netlify/functions/site-content";
 
-    const ITEM_NAMES = {
-      "ALL": "🌐 All inflatables",
-      "big-fun-xl": "Big Fun XL",
-      "dolphin-slide": "Water Slide",
-      "foam-machine": "Foam Machine",
-      "magic-castle": "Magic Castle",
-      "slip-and-slide": "Slip and Slide",
-      "superhero-combo": "Super Hero Duo Combo",
-      "tropical-paradise": "Tropical Paradise"
+    let ITEM_NAMES = {
+      "ALL": "🌐 All inflatables"
     };
 
     const BANNER_LABELS = {
@@ -713,6 +699,7 @@
       renderBannersForm();
       renderFaqAdmin();
       renderArticles();
+      renderItemOptions();
       loadBlocked();
       loadBookings();
     }
@@ -968,6 +955,8 @@
           const ok = await saveContent(document.getElementById("articleStatus"), "Product deleted");
           if (ok) {
             renderArticles();
+            renderItemOptions();
+            loadBlocked();
             document.getElementById("articleFormBox").style.display = "none";
           }
         });
@@ -1094,6 +1083,8 @@
       const ok = await saveContent(status, "Product saved");
       if (ok) {
         renderArticles();
+        renderItemOptions();
+        loadBlocked();
         openArticleForm(product.id);
         status.textContent = "✅ Product saved";
         status.style.color = "#27ae60";
@@ -1103,6 +1094,48 @@
     /* ============================================
        BLOCKED DATES (existing feature)
        ============================================ */
+    function renderItemOptions() {
+      const select = document.getElementById("item");
+      if (!select || !content) return;
+
+      const current = select.value || "ALL";
+      const names = { "ALL": "🌐 All inflatables" };
+
+      const products = (content.products || []).slice().sort(function (a, b) {
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      });
+      const addons = (content.addons || []).slice().sort(function (a, b) {
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      });
+
+      products.forEach(function (p) { names[p.id] = p.name; });
+      addons.forEach(function (a) { if (!names[a.id]) names[a.id] = a.name; });
+      ITEM_NAMES = names;
+
+      let html = '<option value="ALL">🌐 ALL inflatables (global block)</option>';
+
+      if (products.length) {
+        html += '<optgroup label="Inflatables & packages">' +
+          products.map(function (p) {
+            return '<option value="' + escapeAttr(p.id) + '">' +
+              escapeHtml(p.name) + (p.available === false ? " (unavailable)" : "") +
+              "</option>";
+          }).join("") +
+          "</optgroup>";
+      }
+
+      if (addons.length) {
+        html += '<optgroup label="Add-ons">' +
+          addons.map(function (a) {
+            return '<option value="' + escapeAttr(a.id) + '">' + escapeHtml(a.name) + "</option>";
+          }).join("") +
+          "</optgroup>";
+      }
+
+      select.innerHTML = html;
+      select.value = names[current] ? current : "ALL";
+    }
+
     async function sendAction(action) {
       const status = document.getElementById("status");
       const key = adminKey;
