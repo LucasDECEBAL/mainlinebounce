@@ -1244,41 +1244,52 @@
 
     function compressImage(file) {
       return new Promise(function (resolve, reject) {
-        /* SVG and GIF are uploaded untouched */
-        if (/svg|gif/i.test(file.type)) {
+        /* GIF is uploaded untouched (keeps the animation) */
+        if (/gif/i.test(file.type)) {
           readFileAsBase64(file)
             .then(function (data) { resolve({ name: file.name, type: file.type, data: data }); })
             .catch(reject);
           return;
         }
 
-        const url = URL.createObjectURL(file);
-        const img = new Image();
+        function process(sourceUrl, revoke) {
+          const img = new Image();
 
-        img.onload = function () {
-          const MAX = 1600;
-          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round(img.width * scale));
-          canvas.height = Math.max(1, Math.round(img.height * scale));
-          const ctx = canvas.getContext("2d");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          URL.revokeObjectURL(url);
-          resolve({
-            name: file.name.replace(/\.[^.]+$/, "") + ".jpg",
-            type: "image/jpeg",
-            data: (canvas.toDataURL("image/jpeg", 0.82).split(",")[1] || "")
-          });
-        };
+          img.onload = function () {
+            const MAX = 1600;
+            const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            if (revoke) URL.revokeObjectURL(sourceUrl);
+            resolve({
+              name: file.name.replace(/\.[^.]+$/, "") + ".jpg",
+              type: "image/jpeg",
+              data: (canvas.toDataURL("image/jpeg", 0.82).split(",")[1] || "")
+            });
+          };
 
-        img.onerror = function () {
-          URL.revokeObjectURL(url);
-          reject(new Error("Could not read image"));
-        };
+          img.onerror = function () {
+            if (revoke) {
+              URL.revokeObjectURL(sourceUrl);
+              /* Blob URLs can be blocked by a strict CSP — retry with a data URL. */
+              const reader = new FileReader();
+              reader.onload = function () { process(String(reader.result || ""), false); };
+              reader.onerror = function () { reject(new Error("Could not read image")); };
+              reader.readAsDataURL(file);
+              return;
+            }
+            reject(new Error("Could not read image"));
+          };
 
-        img.src = url;
+          img.src = sourceUrl;
+        }
+
+        process(URL.createObjectURL(file), true);
       });
     }
 
