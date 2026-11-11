@@ -397,6 +397,89 @@
     .admin-head h1{ font-size: 1.35rem; }
     .form-actions{ grid-template-columns: 1fr; }
   }
+
+  /* --- Upload photos / vidéos --- */
+  .upload-row{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0 4px;
+  }
+  .upload-row input[type="file"]{
+    flex: 1;
+    min-width: 200px;
+    padding: 9px 10px;
+    font-size: 0.85rem;
+    background: #fff;
+    border: 1.5px dashed #d8c9d1;
+    border-radius: 10px;
+  }
+  .media-thumbs{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0 14px;
+  }
+  .media-thumb{
+    position: relative;
+    width: 96px;
+    height: 78px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--color-pink-pale);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 2px solid #eee;
+  }
+  .media-thumb.is-cover{
+    border-color: var(--color-pink);
+  }
+  .media-thumb img,
+  .media-thumb video{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .media-thumb .media-badge{
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    background: rgba(45,43,58,0.8);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 50px;
+    text-transform: uppercase;
+  }
+  .media-thumb.is-cover .media-badge{
+    background: var(--color-pink);
+  }
+  .media-thumb .media-remove{
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .media-thumb .media-remove:hover{ background: #e63329; }
+  .upload-help{
+    font-size: 0.78rem;
+    color: var(--color-gray);
+    margin: 0 0 12px;
+  }
   </style>
 </head>
 <body>
@@ -423,6 +506,7 @@
         <button class="tab" data-tab="bookings">📒 Bookings</button>
         <button class="tab" data-tab="banners">🖼️ Banners</button>
         <button class="tab" data-tab="faq">❓ FAQ</button>
+        <button class="tab" data-tab="blog">📰 Blog</button>
         <button class="tab" data-tab="articles">🎈 Products</button>
       </div>
 
@@ -559,6 +643,64 @@
         </div>
       </div>
 
+      <!-- ---------- BLOG TAB ---------- -->
+      <div class="tab-panel" id="tab-blog" style="display:none;">
+        <div class="box">
+          <h3>Blog articles</h3>
+          <p style="font-size:0.8rem;color:var(--color-gray);margin:0 0 14px;">
+            Each article is shown on the public Blog page. Upload photos from your computer —
+            if an article has several photos, visitors can browse them with arrows.
+            Videos can be uploaded (max 3.5 MB) or added as a YouTube link.
+          </p>
+          <div id="blogTable"></div>
+          <button class="block-btn" id="newBlogBtn">➕ New article</button>
+        </div>
+
+        <div class="box" id="blogFormBox" style="display:none;">
+          <h3 id="blogFormTitle">New article</h3>
+          <input type="hidden" id="bl-id">
+
+          <label>Title</label>
+          <input type="text" id="bl-title" maxlength="200">
+
+          <label>Date</label>
+          <input type="date" id="bl-date">
+
+          <label>Short description (shown on the blog list)</label>
+          <textarea id="bl-short" rows="3" maxlength="500"></textarea>
+
+          <label>Long description</label>
+          <textarea id="bl-long" rows="10" maxlength="6000" placeholder="Write the article… Leave an empty line between paragraphs."></textarea>
+
+          <label>Photos &amp; videos (upload from your computer)</label>
+          <div class="upload-row">
+            <input type="file" id="bl-files" accept="image/*,video/*" multiple>
+          </div>
+          <div class="media-thumbs" id="bl-media"></div>
+          <p class="upload-help">
+            Photos are compressed automatically. The first photo is the cover. Max 3.5 MB per file,
+            up to 10 photos.
+          </p>
+
+          <label>Video link (YouTube or MP4 URL) — optional</label>
+          <input type="text" id="bl-video" maxlength="300" placeholder="https://www.youtube.com/watch?v=…">
+
+          <label>Position (1 = first)</label>
+          <input type="number" id="bl-position" min="1" max="99" value="1">
+
+          <div class="check-row">
+            <input type="checkbox" id="bl-published" checked>
+            <span>Published (visible on the site)</span>
+          </div>
+
+          <div class="form-actions">
+            <button class="block-btn" id="saveBlogBtn" style="margin-top:8px;">💾 Save article</button>
+            <button class="unblock-btn" id="cancelBlogBtn" style="margin-top:8px;">Cancel</button>
+          </div>
+          <div class="status" id="blogStatus"></div>
+        </div>
+      </div>
+
       <!-- ---------- PRODUCTS TAB ---------- -->
       <div class="tab-panel" id="tab-articles" style="display:none;">
         <div class="box">
@@ -630,6 +772,12 @@
 
           <label>Image (path)</label>
           <input type="text" id="pkg-image" maxlength="300" placeholder="images/my-package.png">
+
+          <div class="upload-row">
+            <input type="file" id="pkg-file" accept="image/*">
+          </div>
+          <div class="media-thumbs" id="pkg-thumbs"></div>
+          <p class="upload-help">Or upload a photo from your computer — the path above updates automatically.</p>
 
           <label>Badge (optional)</label>
           <input type="text" id="pkg-badge" maxlength="30" placeholder="LIMITED TIME">
@@ -731,6 +879,13 @@
 
           <label>Image (path)</label>
           <input type="text" id="a-image" maxlength="300" placeholder="images/my-product.png">
+
+          <label>Upload photos from your computer</label>
+          <div class="upload-row">
+            <input type="file" id="a-files" accept="image/*" multiple>
+          </div>
+          <div class="media-thumbs" id="a-thumbs"></div>
+          <p class="upload-help">Add several photos to show arrows on the product page. The first photo is the cover.</p>
 
           <label>Badge (optional)</label>
           <input type="text" id="a-badge" maxlength="30" placeholder="LIMITED TIME">
@@ -864,6 +1019,7 @@
 
       renderBannersForm();
       renderFaqAdmin();
+      renderBlogAdmin();
       renderPackages();
       renderArticles();
       renderItemOptions();
@@ -1068,6 +1224,176 @@
         status.textContent = "✅ Question saved";
         status.style.color = "#27ae60";
       }
+    }
+
+    /* ============================================
+       MEDIA UPLOAD (photos & vidéos)
+       ============================================ */
+    const API_MEDIA = "/.netlify/functions/media";
+
+    function readFileAsBase64(file) {
+      return new Promise(function (resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function () {
+          resolve(String(reader.result || "").split(",")[1] || "");
+        };
+        reader.onerror = function () { reject(new Error("Could not read file")); };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function compressImage(file) {
+      return new Promise(function (resolve, reject) {
+        /* SVG and GIF are uploaded untouched */
+        if (/svg|gif/i.test(file.type)) {
+          readFileAsBase64(file)
+            .then(function (data) { resolve({ name: file.name, type: file.type, data: data }); })
+            .catch(reject);
+          return;
+        }
+
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = function () {
+          const MAX = 1600;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve({
+            name: file.name.replace(/\.[^.]+$/, "") + ".jpg",
+            type: "image/jpeg",
+            data: (canvas.toDataURL("image/jpeg", 0.82).split(",")[1] || "")
+          });
+        };
+
+        img.onerror = function () {
+          URL.revokeObjectURL(url);
+          reject(new Error("Could not read image"));
+        };
+
+        img.src = url;
+      });
+    }
+
+    async function uploadMediaFile(file) {
+      const isImage = /^image\//.test(file.type);
+      const isVideo = /^video\//.test(file.type);
+
+      if (!isImage && !isVideo) throw new Error("Unsupported file type");
+      if (isVideo && file.size > 3.5 * 1024 * 1024) {
+        throw new Error("Video is too large (max 3.5 MB). Use a YouTube link instead.");
+      }
+
+      const payload = isImage
+        ? await compressImage(file)
+        : { name: file.name, type: file.type, data: await readFileAsBase64(file) };
+
+      const res = await fetch(API_MEDIA, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.status === 401) {
+        logout();
+        throw new Error("Session expired — log in again");
+      }
+
+      if (!res.ok) {
+        let message = "Upload failed";
+        try { message = (await res.json()).error || message; } catch (e) {}
+        throw new Error(message);
+      }
+
+      return await res.json(); /* { url, type } */
+    }
+
+    function mediaThumbHTML(url, type, index, isCover, removable) {
+      const isVideo = type && type.indexOf("video") === 0;
+      const label = isCover ? "Cover" : isVideo ? "Video" : "Photo";
+      return (
+        '<div class="media-thumb' + (isCover ? " is-cover" : "") + '">' +
+          (isVideo
+            ? '<video src="' + escapeAttr(url) + '" muted preload="metadata"></video>'
+            : '<img src="' + escapeAttr(url) + '" alt="" />') +
+          '<span class="media-badge">' + label + "</span>" +
+          (removable
+            ? '<button type="button" class="media-remove" data-media-remove="' + index + '" title="Remove">✕</button>'
+            : "") +
+        "</div>"
+      );
+    }
+
+    /* ============================================
+       PRODUCT PHOTOS (multi-upload)
+       ============================================ */
+    let articleImages = [];
+
+    function renderArticleThumbs() {
+      const root = document.getElementById("a-thumbs");
+      if (!root) return;
+
+      root.innerHTML = articleImages.map(function (url, i) {
+        return mediaThumbHTML(url, "image", i, i === 0, true);
+      }).join("");
+
+      root.querySelectorAll("[data-media-remove]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          articleImages.splice(parseInt(btn.getAttribute("data-media-remove"), 10), 1);
+          renderArticleThumbs();
+        });
+      });
+    }
+
+    async function handleArticleUploads(files) {
+      if (!files || !files.length) return;
+      const status = document.getElementById("articleStatus");
+      status.textContent = "⏳ Uploading…";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          if (articleImages.length >= 8) throw new Error("Max 8 photos per product");
+          const result = await uploadMediaFile(files[i]);
+          articleImages.push(result.url);
+        }
+        renderArticleThumbs();
+        status.textContent = "✅ Photos uploaded — remember to save.";
+        status.style.color = "#27ae60";
+      } catch (error) {
+        status.textContent = "❌ " + error.message;
+        status.style.color = "#e63329";
+      }
+
+      document.getElementById("a-files").value = "";
+    }
+
+    async function handlePackageUpload(file) {
+      if (!file) return;
+      const status = document.getElementById("packageStatus");
+      status.textContent = "⏳ Uploading…";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        const result = await uploadMediaFile(file);
+        document.getElementById("pkg-image").value = result.url;
+        document.getElementById("pkg-thumbs").innerHTML =
+          mediaThumbHTML(result.url, "image", 0, false, false);
+        status.textContent = "✅ Photo uploaded — remember to save.";
+        status.style.color = "#27ae60";
+      } catch (error) {
+        status.textContent = "❌ " + error.message;
+        status.style.color = "#e63329";
+      }
+
+      document.getElementById("pkg-file").value = "";
     }
 
     /* ============================================
@@ -1600,6 +1926,12 @@
       document.getElementById("a-short").value = product ? product.shortDesc : "";
       document.getElementById("a-long").value = product ? product.longDesc : "";
       document.getElementById("a-image").value = product ? product.image : "images/placeholder.svg";
+
+      articleImages = product && Array.isArray(product.images) ? product.images.slice() : [];
+      if (!articleImages.length && product && product.image && product.image !== "images/placeholder.svg") {
+        articleImages = [product.image];
+      }
+      renderArticleThumbs();
       document.getElementById("a-badge").value = product ? product.badge : "";
       document.getElementById("a-url").value = product ? product.url : "";
       document.getElementById("a-available").checked = product ? product.available : true;
@@ -1649,7 +1981,8 @@
         shortDesc: document.getElementById("a-short").value.trim(),
         longDesc: document.getElementById("a-long").value.trim(),
         dimension: document.getElementById("a-dimension").value.trim(),
-        image: document.getElementById("a-image").value.trim() || "images/placeholder.svg",
+        image: articleImages[0] || document.getElementById("a-image").value.trim() || "images/placeholder.svg",
+        images: articleImages.slice(0, 8),
         position: parseInt(document.getElementById("a-position").value, 10) || 1,
         available: document.getElementById("a-available").checked,
         url: document.getElementById("a-url").value.trim(),
@@ -1686,6 +2019,193 @@
         loadBlocked();
         openArticleForm(product.id);
         status.textContent = "✅ Product saved";
+        status.style.color = "#27ae60";
+      }
+    }
+
+    /* ============================================
+       BLOG
+       ============================================ */
+    let blogImages = [];
+    let blogVideo = "";
+
+    function renderBlogAdmin() {
+      const root = document.getElementById("blogTable");
+      if (!root) return;
+
+      const posts = (content.blog || []).slice().sort(function (a, b) {
+        if (String(a.date || "") !== String(b.date || "")) {
+          return String(b.date || "").localeCompare(String(a.date || ""));
+        }
+        return (Number(a.position) || 0) - (Number(b.position) || 0);
+      });
+
+      if (!posts.length) {
+        root.innerHTML = '<p style="color:var(--color-gray);">No articles yet. Click "New article".</p>';
+        return;
+      }
+
+      root.innerHTML =
+        '<table class="articles-table">' +
+          "<thead><tr><th>Date</th><th>Title</th><th>Status</th><th></th></tr></thead>" +
+          "<tbody>" +
+            posts.map(function (post) {
+              return (
+                "<tr>" +
+                  "<td>" + escapeHtml(post.date || "—") + "</td>" +
+                  "<td><strong>" + escapeHtml(post.title) + "</strong></td>" +
+                  "<td>" + (post.published === false
+                    ? '<span class="tag off">Draft</span>'
+                    : '<span class="tag">Published</span>') + "</td>" +
+                  '<td style="white-space:nowrap;">' +
+                    '<button class="row-btn edit" data-blog-edit="' + escapeAttr(post.id) + '">Edit</button>' +
+                    '<button class="row-btn del" data-blog-del="' + escapeAttr(post.id) + '">Delete</button>' +
+                  "</td>" +
+                "</tr>"
+              );
+            }).join("") +
+          "</tbody>" +
+        "</table>";
+
+      root.querySelectorAll("[data-blog-edit]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          openBlogForm(btn.getAttribute("data-blog-edit"));
+        });
+      });
+
+      root.querySelectorAll("[data-blog-del]").forEach(function (btn) {
+        btn.addEventListener("click", async function () {
+          if (!confirm("Delete this article?")) return;
+          const id = btn.getAttribute("data-blog-del");
+          content.blog = (content.blog || []).filter(function (post) { return post.id !== id; });
+          const ok = await saveContent(document.getElementById("blogStatus"), "Article deleted");
+          if (ok) {
+            renderBlogAdmin();
+            document.getElementById("blogFormBox").style.display = "none";
+          }
+        });
+      });
+    }
+
+    function renderBlogMedia() {
+      const root = document.getElementById("bl-media");
+      if (!root) return;
+
+      let html = blogImages.map(function (url, i) {
+        return mediaThumbHTML(url, "image", i, i === 0, true);
+      }).join("");
+
+      if (blogVideo) {
+        html += mediaThumbHTML(blogVideo, "video", -1, false, true);
+      }
+
+      root.innerHTML = html;
+
+      root.querySelectorAll("[data-media-remove]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const index = parseInt(btn.getAttribute("data-media-remove"), 10);
+          if (index === -1) {
+            blogVideo = "";
+            document.getElementById("bl-video").value = "";
+          } else {
+            blogImages.splice(index, 1);
+          }
+          renderBlogMedia();
+        });
+      });
+    }
+
+    function openBlogForm(id) {
+      const box = document.getElementById("blogFormBox");
+      box.style.display = "block";
+
+      const post = id
+        ? (content.blog || []).find(function (p) { return p.id === id; })
+        : null;
+
+      document.getElementById("blogFormTitle").textContent = post ? "Edit article" : "New article";
+      document.getElementById("bl-id").value = post ? post.id : "";
+      document.getElementById("bl-title").value = post ? post.title : "";
+      document.getElementById("bl-date").value = post && post.date
+        ? post.date
+        : new Date().toISOString().slice(0, 10);
+      document.getElementById("bl-short").value = post ? post.shortDesc : "";
+      document.getElementById("bl-long").value = post ? post.longDesc : "";
+      document.getElementById("bl-video").value = post && post.video ? post.video : "";
+      document.getElementById("bl-position").value = post ? post.position : 1;
+      document.getElementById("bl-published").checked = post ? post.published !== false : true;
+      document.getElementById("blogStatus").textContent = "";
+
+      blogImages = post && Array.isArray(post.images) ? post.images.slice() : [];
+      blogVideo = post && post.video ? post.video : "";
+      renderBlogMedia();
+
+      if (box.scrollIntoView) box.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    async function handleBlogUploads(files) {
+      if (!files || !files.length) return;
+      const status = document.getElementById("blogStatus");
+      status.textContent = "⏳ Uploading…";
+      status.style.color = "var(--color-gray)";
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const isVideo = /^video\//.test(files[i].type);
+          const result = await uploadMediaFile(files[i]);
+          if (isVideo) {
+            blogVideo = result.url;
+            document.getElementById("bl-video").value = result.url;
+          } else if (blogImages.length < 10) {
+            blogImages.push(result.url);
+          }
+        }
+        renderBlogMedia();
+        status.textContent = "✅ Uploaded — remember to save.";
+        status.style.color = "#27ae60";
+      } catch (error) {
+        status.textContent = "❌ " + error.message;
+        status.style.color = "#e63329";
+      }
+
+      document.getElementById("bl-files").value = "";
+    }
+
+    async function saveBlog() {
+      const status = document.getElementById("blogStatus");
+      const title = document.getElementById("bl-title").value.trim();
+
+      if (!title) {
+        status.textContent = "❌ Title is required";
+        status.style.color = "#e63329";
+        return;
+      }
+
+      const existingId = document.getElementById("bl-id").value;
+      const id = existingId || "post-" + slugify(title) + "-" + Date.now().toString(36);
+
+      const post = {
+        id: id,
+        title: title,
+        date: document.getElementById("bl-date").value || "",
+        shortDesc: document.getElementById("bl-short").value.trim(),
+        longDesc: document.getElementById("bl-long").value.trim(),
+        images: blogImages.slice(0, 10),
+        video: document.getElementById("bl-video").value.trim(),
+        position: parseInt(document.getElementById("bl-position").value, 10) || 1,
+        published: document.getElementById("bl-published").checked
+      };
+
+      if (!Array.isArray(content.blog)) content.blog = [];
+      const index = content.blog.findIndex(function (p) { return p.id === id; });
+      if (index >= 0) content.blog[index] = post;
+      else content.blog.push(post);
+
+      const ok = await saveContent(status, "Article saved");
+      if (ok) {
+        renderBlogAdmin();
+        openBlogForm(post.id);
+        status.textContent = "✅ Article saved";
         status.style.color = "#27ae60";
       }
     }
@@ -2345,6 +2865,23 @@
     });
     document.getElementById("newFaqBtn").addEventListener("click", function () {
       openFaqForm(null);
+    });
+
+    document.getElementById("newBlogBtn").addEventListener("click", function () {
+      openBlogForm(null);
+    });
+    document.getElementById("saveBlogBtn").addEventListener("click", saveBlog);
+    document.getElementById("cancelBlogBtn").addEventListener("click", function () {
+      document.getElementById("blogFormBox").style.display = "none";
+    });
+    document.getElementById("bl-files").addEventListener("change", function (e) {
+      handleBlogUploads(e.target.files);
+    });
+    document.getElementById("a-files").addEventListener("change", function (e) {
+      handleArticleUploads(e.target.files);
+    });
+    document.getElementById("pkg-file").addEventListener("change", function (e) {
+      handlePackageUpload(e.target.files[0]);
     });
 
     document.getElementById("refreshBookingsBtn").addEventListener("click", function () {

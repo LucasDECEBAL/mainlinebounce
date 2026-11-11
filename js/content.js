@@ -247,6 +247,7 @@ const DEFAULT_CONTENT = {
       position: 8,
     },
   ],
+  blog: [],
 };
 
 const PAGES = ["inflatables", "addons", "silent-disco", "photo-booths"];
@@ -294,6 +295,76 @@ function safeImage(value) {
 function money(value) {
   const n = Number(value) || 0;
   return "$" + (Math.round(n * 100) / 100).toString().replace(/\.00$/, "");
+}
+
+/* ---------- Photos (single or gallery) ---------- */
+function imageList(images, cover) {
+  const list = (Array.isArray(images) ? images : [])
+    .map(function (src) { return safeImage(src); })
+    .filter(function (src, i, arr) {
+      return src && src !== "images/placeholder.svg" && arr.indexOf(src) === i;
+    });
+  if (list.length) return list;
+  return [safeImage(cover)];
+}
+
+function galleryHTML(images, alt) {
+  const list = imageList(images);
+  if (list.length <= 1) {
+    return '<img src="' + esc(list[0]) + '" alt="' + esc(alt) + '" />';
+  }
+
+  return (
+    '<div class="gallery" data-gallery>' +
+      '<div class="gallery-track">' +
+        list.map(function (src, i) {
+          return '<img class="gallery-slide' + (i === 0 ? " is-active" : "") +
+            '" src="' + esc(src) + '" alt="' + esc(alt + " — photo " + (i + 1)) +
+            '" loading="lazy" />';
+        }).join("") +
+      "</div>" +
+      '<button type="button" class="gallery-arrow prev" data-gallery-prev aria-label="Previous photo">‹</button>' +
+      '<button type="button" class="gallery-arrow next" data-gallery-next aria-label="Next photo">›</button>' +
+      '<div class="gallery-dots">' +
+        list.map(function (_, i) {
+          return '<button type="button" class="gallery-dot' + (i === 0 ? " is-active" : "") +
+            '" data-gallery-dot="' + i + '" aria-label="Photo ' + (i + 1) + '"></button>';
+        }).join("") +
+      "</div>" +
+    "</div>"
+  );
+}
+
+function initGalleries(root) {
+  (root || document).querySelectorAll("[data-gallery]").forEach(function (gallery) {
+    if (gallery.dataset.bound === "1") return;
+    gallery.dataset.bound = "1";
+
+    const slides = Array.prototype.slice.call(gallery.querySelectorAll(".gallery-slide"));
+    const dots = Array.prototype.slice.call(gallery.querySelectorAll(".gallery-dot"));
+    let index = 0;
+
+    function show(next) {
+      if (!slides.length) return;
+      index = (next + slides.length) % slides.length;
+      slides.forEach(function (slide, i) {
+        slide.classList.toggle("is-active", i === index);
+      });
+      dots.forEach(function (dot, i) {
+        dot.classList.toggle("is-active", i === index);
+      });
+    }
+
+    const prev = gallery.querySelector("[data-gallery-prev]");
+    const next = gallery.querySelector("[data-gallery-next]");
+    if (prev) prev.addEventListener("click", function (e) { e.preventDefault(); show(index - 1); });
+    if (next) next.addEventListener("click", function (e) { e.preventDefault(); show(index + 1); });
+    dots.forEach(function (dot) {
+      dot.addEventListener("click", function () {
+        show(parseInt(dot.getAttribute("data-gallery-dot"), 10) || 0);
+      });
+    });
+  });
 }
 
 function detailUrl(product) {
@@ -651,7 +722,7 @@ function productCardHTML(p) {
   return (
     '<article class="product-card' + (p.available ? "" : " is-unavailable") + '">' +
       '<div class="product-image">' +
-        '<img src="' + esc(safeImage(p.image)) + '" alt="' + esc(p.name) + '" loading="lazy" />' +
+        '<img src="' + esc(imageList(p.images, p.image)[0]) + '" alt="' + esc(p.name) + '" loading="lazy" />' +
         badgeHTML +
       "</div>" +
       '<div class="product-card-body">' +
@@ -898,7 +969,7 @@ function renderProductPage(root, content, product) {
     '<section class="product-detail">' +
       '<div class="container">' +
         '<div class="product-detail-inner">' +
-          '<div class="detail-image-card"><img src="' + esc(safeImage(product.image)) + '" alt="' + esc(product.name) + '" /></div>' +
+          '<div class="detail-image-card">' + galleryHTML(imageList(product.images, product.image), product.name) + '</div>' +
           '<div class="detail-info-card">' +
             "<h1>" + esc(product.name) + "</h1>" +
             (product.badge ? '<span class="promo-badge">' + esc(product.badge) + "</span>" : "") +
@@ -924,6 +995,7 @@ function renderProductPage(root, content, product) {
     addonsHTML;
 
   bindAddButtons(root);
+  initGalleries(root);
 }
 
 function packageDisplayImage(pkg, choice) {
@@ -1164,6 +1236,128 @@ function renderFaq(root, content) {
   if (typeof initFAQ === "function") initFAQ();
 }
 
+/* ---------- Blog page ---------- */
+function blogDateLabel(value) {
+  if (!value) return "";
+  const date = new Date(value + "T00:00:00");
+  if (isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function sortedBlogPosts(content) {
+  return (content.blog || [])
+    .filter(function (post) { return post.published !== false && post.title; })
+    .slice()
+    .sort(function (a, b) {
+      const dateA = String(a.date || "");
+      const dateB = String(b.date || "");
+      if (dateA !== dateB) return dateB.localeCompare(dateA);
+      return (Number(a.position) || 0) - (Number(b.position) || 0);
+    });
+}
+
+function blogVideoHTML(video) {
+  const url = safeUrl(video);
+  if (!url) return "";
+
+  const youtube = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/
+  );
+  if (youtube) {
+    return (
+      '<div class="blog-video"><iframe src="https://www.youtube-nocookie.com/embed/' +
+      esc(youtube[1]) +
+      '" title="Blog video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'
+    );
+  }
+
+  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) {
+    return '<video class="blog-video" controls preload="metadata" src="' + esc(url) + '"></video>';
+  }
+
+  return (
+    '<p><a class="btn btn-outline btn-sm" href="' + esc(url) +
+    '" target="_blank" rel="noopener">▶ Watch the video</a></p>'
+  );
+}
+
+function renderBlog(root, content) {
+  const posts = sortedBlogPosts(content);
+
+  root.innerHTML = posts.length
+    ? '<div class="blog-list">' +
+      posts.map(function (post) {
+        const images = imageList(post.images, "");
+        const href = "blog-post.html?id=" + encodeURIComponent(post.id);
+
+        return (
+          '<article class="blog-card">' +
+            '<a class="blog-card-media" href="' + href + '" tabindex="-1" aria-hidden="true">' +
+              '<img src="' + esc(images[0]) + '" alt="' + esc(post.title) + '" loading="lazy" />' +
+              (images.length > 1 ? '<span class="blog-count">📷 ' + images.length + "</span>" : "") +
+            "</a>" +
+            '<div class="blog-card-body">' +
+              (post.date ? '<span class="blog-date">' + esc(blogDateLabel(post.date)) + "</span>" : "") +
+              "<h2><a href=\"" + href + '">' + esc(post.title) + "</a></h2>" +
+              (post.shortDesc ? "<p>" + esc(post.shortDesc) + "</p>" : "") +
+              '<a class="btn btn-pink btn-sm" href="' + href + '">Read more</a>' +
+            "</div>" +
+          "</article>"
+        );
+      }).join("") +
+      "</div>"
+    : '<p class="catalog-empty">No articles yet — check back soon!</p>';
+}
+
+function renderBlogPost(root, content) {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("id");
+  const post = (content.blog || []).find(function (p) { return p.id === id; });
+
+  if (!post) {
+    root.innerHTML =
+      '<section class="products-section"><div class="container">' +
+        '<div class="cart-empty" style="display:block; text-align:center;">' +
+          '<p style="margin-bottom:20px;">This article could not be found.</p>' +
+          '<a href="blog.html" class="btn btn-pink">← All articles</a>' +
+        "</div>" +
+      "</div></section>";
+    return;
+  }
+
+  document.title = post.title + " – Main Line Bounce";
+  const images = imageList(post.images, "");
+  const hasImages = Array.isArray(post.images) && post.images.length > 0;
+  const paragraphs = String(post.longDesc || "")
+    .split(/\n{2,}/)
+    .map(function (block) { return block.trim(); })
+    .filter(Boolean)
+    .map(function (block) {
+      return "<p>" + esc(block).replace(/\n/g, "<br />") + "</p>";
+    })
+    .join("");
+
+  root.innerHTML =
+    '<section class="blog-post-section"><div class="container">' +
+      '<div class="blog-post">' +
+        '<a href="blog.html" class="blog-back">← All articles</a>' +
+        (post.date ? '<span class="blog-date">' + esc(blogDateLabel(post.date)) + "</span>" : "") +
+        "<h1>" + esc(post.title) + "</h1>" +
+        (post.shortDesc ? '<p class="blog-lead">' + esc(post.shortDesc) + "</p>" : "") +
+        (hasImages ? '<div class="blog-hero">' + galleryHTML(post.images, post.title) + "</div>" : "") +
+        blogVideoHTML(post.video) +
+        '<div class="blog-content">' + paragraphs + "</div>" +
+        '<a href="blog.html" class="btn btn-outline">← Back to the blog</a>' +
+      "</div>" +
+    "</div></section>";
+
+  initGalleries(root);
+}
+
 /* ---------- Init ---------- */
 document.addEventListener("DOMContentLoaded", async function () {
   const content = await loadSiteContent();
@@ -1179,6 +1373,12 @@ document.addEventListener("DOMContentLoaded", async function () {
   // Si le backend est injoignable, on garde les questions statiques du HTML
   // (déjà reliées à l'accordéon par main.js).
   if (faqRoot && !contentIsFallback) renderFaq(faqRoot, content);
+
+  const blogRoot = document.getElementById("blog-root");
+  if (blogRoot) renderBlog(blogRoot, content);
+
+  const blogPostRoot = document.getElementById("blog-post-root");
+  if (blogPostRoot) renderBlogPost(blogPostRoot, content);
 
   const productRoot = document.getElementById("product-root");
   if (productRoot) {

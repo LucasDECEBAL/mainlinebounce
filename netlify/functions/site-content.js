@@ -414,6 +414,7 @@ const DEFAULT_CONTENT = {
       position: 8,
     },
   ],
+  blog: [],
 };
 
 const CATEGORIES = ["kids", "teen", "corporate"];
@@ -488,6 +489,14 @@ function cleanProduct(input) {
     .filter(Boolean)
     .slice(0, 6);
 
+  /* Multiple photos: the first one is the cover. */
+  let images = Array.isArray(p.images) ? p.images : [];
+  images = images
+    .map((img) => safeImage(img))
+    .filter((img) => img && img !== "images/placeholder.svg")
+    .filter((img, i, arr) => arr.indexOf(img) === i)
+    .slice(0, 8);
+
   return {
     id: cleanId(p.id) || "item-" + crypto.randomBytes(4).toString("hex"),
     name: cleanStr(p.name, 100),
@@ -500,6 +509,7 @@ function cleanProduct(input) {
     longDesc: cleanStr(p.longDesc, 3000),
     dimension: cleanStr(p.dimension, 60),
     image: safeImage(p.image) || "images/placeholder.svg",
+    images,
     position: Math.min(99, Math.max(1, parseInt(p.position, 10) || 1)),
     available: p.available !== false,
     url: safeUrl(p.url),
@@ -513,6 +523,31 @@ function cleanFaqItem(f) {
     question: cleanStr(f && f.question, 300),
     answer: cleanStr(f && f.answer, 3000),
     position: Math.min(99, Math.max(1, parseInt(f && f.position, 10) || 1)),
+  };
+}
+
+function cleanBlogItem(b) {
+  const source = b && typeof b === "object" ? b : {};
+
+  let images = Array.isArray(source.images) ? source.images : [];
+  images = images
+    .map((img) => safeImage(img))
+    .filter((img) => img && img !== "images/placeholder.svg")
+    .filter((img, i, arr) => arr.indexOf(img) === i)
+    .slice(0, 10);
+
+  const dateValue = String(source.date || "").trim();
+
+  return {
+    id: cleanId(source.id) || "post-" + crypto.randomBytes(4).toString("hex"),
+    title: cleanStr(source.title, 200),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? dateValue : "",
+    shortDesc: cleanStr(source.shortDesc, 500),
+    longDesc: cleanStr(source.longDesc, 6000),
+    images,
+    video: safeUrl(source.video),
+    position: Math.min(99, Math.max(1, parseInt(source.position, 10) || 1)),
+    published: source.published !== false,
   };
 }
 
@@ -655,7 +690,12 @@ function cleanContent(raw) {
     .map(cleanFaqItem)
     .filter((f) => f.question);
 
-  return { version: 1, packagesVersion: PACKAGES_VERSION, banners, products, packages, faq };
+  const blog = (Array.isArray(source.blog) ? source.blog : [])
+    .slice(0, 100)
+    .map(cleanBlogItem)
+    .filter((post) => post.title);
+
+  return { version: 1, packagesVersion: PACKAGES_VERSION, banners, products, packages, faq, blog };
 }
 
 /* Complète un contenu sauvegardé avec les valeurs par défaut manquantes
@@ -673,6 +713,7 @@ function normalizeStored(stored) {
       products,
       packages: sanitizePackages(base.packages, productIds),
       faq: base.faq,
+      blog: base.blog,
     };
   }
 
@@ -731,6 +772,7 @@ function normalizeStored(stored) {
     products: normalizedProducts,
     packages: sanitizePackages(packageSource, productIds),
     faq: Array.isArray(stored.faq) && stored.faq.length ? stored.faq : base.faq,
+    blog: Array.isArray(stored.blog) ? stored.blog : base.blog,
   };
 }
 /* Page + positions 1..N par page (ordre ligne par ligne) */
