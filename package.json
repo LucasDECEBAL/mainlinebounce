@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=22"
   },
+  "scripts": {
+    "dev": "node scripts/dev-server.js"
+  },
   "dependencies": {
     "@netlify/blobs": "^10.7.13",
     "nodemailer": "^10.2.1",

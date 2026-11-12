@@ -48,3 +48,6 @@ trailer-video/out/
 *.temp
 *.orig
 *.rej
+
+# Local dev server data
+.local-dev/
