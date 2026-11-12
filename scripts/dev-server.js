@@ -20,6 +20,18 @@ const CONTENT_FILE = path.join(LOCAL_DIR, "content.json");
 const PORT = Number(process.env.PORT) || 8888;
 const ADMIN_KEY = process.env.ADMIN_KEY || "dev-admin-key-1234";
 
+/* Same policy as netlify.toml, so local tests catch CSP regressions. */
+const CSP =
+  "default-src 'self'; " +
+  "script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net https://js.stripe.com; " +
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+  "font-src 'self' https://fonts.gstatic.com data:; " +
+  "img-src 'self' data: blob: https:; " +
+  "media-src 'self' blob: https:; " +
+  "connect-src 'self' https://api.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://www.google-analytics.com https://region1.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net; " +
+  "frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com https://*.doubleclick.net https://*.google.com https://*.g.doubleclick.net https://www.youtube.com https://www.youtube-nocookie.com; " +
+  "object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; upgrade-insecure-requests";
+
 /* Reuse the real sanitizer + default content */
 const siteContent = require(path.join(ROOT, "netlify", "functions", "site-content.js"));
 
@@ -124,6 +136,7 @@ function serveStatic(res, pathname) {
   res.writeHead(200, {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Cache-Control": "no-store",
+    "Content-Security-Policy": CSP,
   });
   fs.createReadStream(filePath).pipe(res);
 }

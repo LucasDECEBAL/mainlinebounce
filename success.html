@@ -1,27 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- ✅ GOOGLE ADS GTAG -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18226675274"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-18226675274');
-</script>
+  <script src="js/tracking.js?v=1"></script>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Booking Confirmed - Main Line Bounce</title>
-<link rel="stylesheet" href="css/style.css?v=4">
-<style>
-.success-wrap{max-width:600px;margin:80px auto;padding:50px 30px;text-align:center;background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.1)}
-.success-icon{font-size:80px;margin-bottom:20px}
-.success-wrap h1{color:#e91e8c;margin-bottom:12px}
-.success-wrap p{color:#666;font-size:17px;line-height:1.6}
-.btn-home{display:inline-block;margin-top:30px;background:#e91e8c;color:#fff;padding:14px 40px;border-radius:50px;text-decoration:none;font-weight:700;transition:.2s}
-.btn-home:hover{background:#c4157a}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Confirmed - Main Line Bounce</title>
+  <link rel="stylesheet" href="css/style.css?v=4">
+  <style>
+  .success-wrap{max-width:600px;margin:80px auto;padding:50px 30px;text-align:center;background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.1)}
+  .success-icon{font-size:80px;margin-bottom:20px}
+  .success-wrap h1{color:#e91e8c;margin-bottom:12px}
+  .success-wrap p{color:#666;font-size:17px;line-height:1.6}
+  .success-wrap a{color:#e91e8c}
+  .btn-home{display:inline-block;margin-top:30px;background:#e91e8c;color:#fff;padding:14px 40px;border-radius:50px;text-decoration:none;font-weight:700;transition:.2s}
+  .btn-home:hover{background:#c4157a}
+  </style>
 </head>
 <body>
 
@@ -30,59 +24,13 @@
 </header>
 
 <div class="success-wrap">
-  <div class="success-icon">🎉 </div>
-  <h1>Payment Successful!</h1>
-<p>
-    Thank you for your booking! Your payment has been received and your
-    reservation is confirmed.<br><br>
-    We'll contact you shortly with all the details. Get ready to bounce! 🦘
-  </p>
+  <div class="success-icon" id="successIcon">⏳</div>
+  <h1 id="successTitle">Checking your payment…</h1>
+  <p id="successText">Please wait a moment while we confirm your booking.</p>
   <a href="index.html" class="btn-home">Back to Home</a>
 </div>
 
-<script>
-  // ✅ Récupère les infos client + le total avant de vider le panier
-  let pending = {};
-  try {
-    pending = JSON.parse(localStorage.getItem("mlb_pending_booking")) || {};
-  } catch (e) {
-    pending = {};
-  }
-  const parsedTotal = Number(pending.total);
-  const total = Number.isFinite(parsedTotal) && parsedTotal > 0 && parsedTotal <= 100000
-    ? parsedTotal
-    : 1.0;
-
-  // ✅ Enhanced Conversions : on redonne les données client à Google (avec consentement)
-  const hasConsent = localStorage.getItem("mlb_data_consent") === "true";
-  if (typeof gtag !== "undefined" && pending.email && hasConsent) {
-    const nameParts = (pending.name || "").trim().split(" ");
-    gtag('set', 'user_data', {
-      "email": pending.email || "",
-      "phone_number": pending.phone || "",
-      "address": {
-        "first_name": nameParts[0] || "",
-        "last_name": nameParts.slice(1).join(" ") || "",
-        "street": pending.address || "",
-        "country": "US"
-      }
-    });
-  }
-
-  // ✅ CONVERSION BOOKING
-  if (typeof gtag !== "undefined") {
-    gtag('event', 'conversion', {
-      'send_to': 'AW-18226675274/yt2_CK2Y18IcEMr8k_ND',
-      'value': total,
-      'currency': 'USD'
-    });
-    console.log("📊 Conversion Booking envoyée !");
-  }
-
-  // Vide le panier après paiement réussi
-  localStorage.removeItem("mlb_cart");
-  localStorage.removeItem("mlb_pending_booking");
-</script>
+<script src="js/success.js?v=1"></script>
 
 </body>
 </html>

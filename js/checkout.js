@@ -5,6 +5,9 @@
 // 🔑 Ta clé PUBLIQUE Stripe
 const STRIPE_PUBLIC_KEY = "pk_live_51TijhzFJaoRvZGr1l39HwB6tqpIhl0ppbIxsQ9fpxW2BR4Xo9lepgPxcrEpxN0txZi64iKVNZaPhA2ujro9BEpIw00sl5Ojy7i";
 
+// 📊 Anti-spam : moment où le formulaire a été ouvert
+const FORM_STARTED_AT = Date.now();
+
 // 📊 Google Ads
 const GOOGLE_ADS_ID = "AW-18226675274";
 const CONVERSION_LABEL = "yt2_CK2Y18IcEMr8k_ND";
@@ -286,6 +289,9 @@ async function handleStripePayment(formData) {
     body: JSON.stringify({
       cart: cart,
       customer: formData,
+      /* Anti-spam (honeypot + time trap) */
+      website: (document.getElementById("website") || {}).value || "",
+      formStartedAt: FORM_STARTED_AT,
     }),
   });
 
@@ -315,8 +321,9 @@ function setUserData(formData) {
 
   // ✅ RGPD/CCPA - Ne pas envoyer les données sans consentement
   const hasConsent = localStorage.getItem('mlb_data_consent') === 'true';
-  if (!hasConsent) {
-    console.log("⚠️ Pas de consentement RGPD - données personnelles non envoyées à Google");
+  const cookieConsent = window.mlbConsent && window.mlbConsent.granted && window.mlbConsent.granted();
+  if (!hasConsent || !cookieConsent) {
+    console.log("⚠️ Pas de consentement - données personnelles non envoyées à Google");
     return;
   }
 

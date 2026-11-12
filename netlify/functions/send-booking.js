@@ -19,7 +19,7 @@ const {
   assertDateAvailable,
 } = require("./lib/catalog");
 const { sendBookingEmail } = require("./booking-email");
-const { recordBooking } = require("./bookings-store");
+const { recordBooking, getBookings } = require("./bookings-store");
 
 const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK;
 
@@ -34,7 +34,7 @@ exports.handler = async (event) => {
     return json(405, { error: "Method Not Allowed" }, headers);
   }
 
-  const limit = rateLimit("booking:" + getClientIp(event), 6, 10 * 60 * 1000);
+  const limit = rateLimit("booking:" + getClientIp(event), 4, 10 * 60 * 1000);
   if (!limit.ok) {
     return json(
       429,
@@ -45,6 +45,19 @@ exports.handler = async (event) => {
 
   try {
     const body = readJson(event, 32 * 1024);
+
+    /* Anti-bot: hidden honeypot field must stay empty. */
+    if (line(body.website, 100)) {
+      return json(200, { success: true }, headers);
+    }
+
+    /* Anti-bot: the form must have been open for more than 2.5 seconds. */
+    const startedAt = Number(body.formStartedAt);
+    const elapsed = Date.now() - startedAt;
+    if (!Number.isFinite(startedAt) || elapsed < 2500 || elapsed > 6 * 60 * 60 * 1000) {
+      throw new HttpError(400, "Invalid submission. Please reload the page and try again.");
+    }
+
     const customer = body.customer && typeof body.customer === "object" ? body.customer : {};
 
     const name = line(customer.name, 100);
@@ -86,6 +99,21 @@ exports.handler = async (event) => {
     const cartText = cart
       .map((item) => `• ${item.name} x${item.quantity} = $${(item.price * item.quantity).toFixed(2)}`)
       .join("\n");
+
+    /* Anti-duplicate: ignore the same email + event date sent twice within 10 minutes. */
+    try {
+      const existing = await getBookings();
+      const duplicate = existing.some(function (b) {
+        const createdAt = Date.parse(b.createdAt);
+        return String(b.email || "").toLowerCase() === mail.toLowerCase() &&
+          String(b.eventDate || "") === eventDate &&
+          Number.isFinite(createdAt) &&
+          Date.now() - createdAt < 10 * 60 * 1000;
+      });
+      if (duplicate) return json(200, { success: true }, headers);
+    } catch (error) {
+      /* If the store is unavailable, continue with the normal flow. */
+    }
 
     if (DISCORD_WEBHOOK) {
       const discordMessage = {

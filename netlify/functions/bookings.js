@@ -15,7 +15,6 @@ const {
   recordBooking,
   deleteBooking,
   updateBooking,
-  ensureHistoricalBookings,
 } = require("./bookings-store");
 
 exports.handler = async (event) => {
@@ -37,12 +36,6 @@ exports.handler = async (event) => {
   /* GET -> booking list (admin) */
   if (event.httpMethod === "GET") {
     try {
-      try {
-        await ensureHistoricalBookings();
-      } catch (error) {
-        console.error("Historical import error:", error);
-      }
-
       const list = await getBookings();
       list.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
       return json(200, { bookings: list }, headers);

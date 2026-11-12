@@ -366,4 +366,9 @@ document.addEventListener('DOMContentLoaded', function () {
   initHamburger();
   initCountdown();
   initPartyPackage();
+
+  var clearCartBtn = document.getElementById("clearCartBtn");
+  if (clearCartBtn) {
+    clearCartBtn.addEventListener("click", clearCart);
+  }
 });

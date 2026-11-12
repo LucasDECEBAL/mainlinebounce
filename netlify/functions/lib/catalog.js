@@ -146,8 +146,8 @@ function normalizeCart(rawCart, catalog) {
 
     const rawQty = item.qty !== undefined ? item.qty : item.quantity;
     const quantity = Math.min(MAX_QTY, Math.max(1, parseInt(rawQty, 10) || 1));
-    const previous = merged.get(id);
-    merged.set(id, {
+    const previous = merged.get(rawId);
+    merged.set(rawId, {
       product,
       price,
       quantity: Math.min(MAX_QTY, (previous ? previous.quantity : 0) + quantity),

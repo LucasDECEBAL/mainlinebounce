@@ -8,30 +8,8 @@
   <meta name="description" content="Fun, clean, and reliable bounce house and party rentals for birthdays, schools, churches, and family parties." />
   <link rel="stylesheet" href="css/style.css?v=4" />
 
-  <!-- Google Ads Tag -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18226675274"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'AW-18226675274');
-  </script>
-
-  <!-- Google Ads Conversion -->
-  <script>
-  function gtag_report_conversion(url) {
-    var callback = function () {
-      if (typeof(url) != 'undefined') {
-        window.location = url;
-      }
-    };
-    gtag('event', 'conversion', {
-        'send_to': 'AW-18226675274/beHlCK_u6bscEMr8k_ND',
-        'event_callback': callback
-    });
-    return false;
-  }
-  </script>
+  <!-- Google Ads + consentement cookies (fichier externe, compatible CSP) -->
+  <script src="js/tracking.js?v=1"></script>
 </head>
 <body>
 
@@ -59,7 +37,7 @@
           <a href="cart.html" class="cart-link" aria-label="View cart">
     🛒<span class="cart-badge">0</span>
   </a>
-          <a href="tel:2674053125" class="btn btn-orange" onclick="return gtag_report_conversion('tel:2674053125');">Call Now</a>
+          <a href="tel:2674053125" class="btn btn-orange" data-gtag-conversion="tel:2674053125">Call Now</a>
         </div>
         <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
           <span></span><span></span><span></span>
@@ -157,6 +135,7 @@
             <li><a href="about.html">About Us</a></li>
             <li><a href="blog.html">Blog</a></li>
             <li><a href="faq.html">FAQ</a></li>
+            <li><a href="privacy.html">Privacy</a></li>
           </ul>
         </nav>
         <div>

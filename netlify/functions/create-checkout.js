@@ -54,6 +54,20 @@ exports.handler = async (event) => {
     getStripe();
 
     const body = readJson(event, 32 * 1024);
+
+    /* Anti-bot: hidden honeypot field must stay empty. */
+    if (line(body.website, 100)) {
+      throw new HttpError(400, "Invalid request");
+    }
+
+    /* Anti-bot: reject submissions sent faster than a human could fill the form. */
+    if (body.formStartedAt !== undefined) {
+      const startedAt = Number(body.formStartedAt);
+      if (!Number.isFinite(startedAt) || Date.now() - startedAt < 1500) {
+        throw new HttpError(400, "Invalid request");
+      }
+    }
+
     const customer = body.customer && typeof body.customer === "object" ? body.customer : {};
 
     const name = line(customer.name, 100);

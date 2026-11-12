@@ -1,11 +1,6 @@
 const nodemailer = require("nodemailer");
 const { escapeHtml, line, text } = require("./lib/security");
 
-const DEFAULT_RECIPIENTS = [
-  "garciajonathan916.jg@gmail.com",
-  "carlineleblanc@gmail.com",
-];
-
 const EMAIL_RE = /^[^\s@<>"'`]+@[^\s@<>"'`]+\.[A-Za-z]{2,}$/;
 
 function buildCartText(cart = []) {
@@ -76,7 +71,9 @@ function buildEmailContent({ title, customer = {}, cart = [], itemsText = "", to
 }
 
 function getRecipients() {
-  return (process.env.BOOKING_NOTIFICATION_EMAILS || DEFAULT_RECIPIENTS.join(","))
+  /* Recipients must be configured in the environment (BOOKING_NOTIFICATION_EMAILS),
+     never hardcoded in the repository. */
+  return (process.env.BOOKING_NOTIFICATION_EMAILS || "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter((value) => EMAIL_RE.test(value))
