@@ -7,7 +7,7 @@ const {
   noStore,
   isAdmin,
   getClientIp,
-  rateLimit,
+  rateLimitPersistent,
   readJson,
   text,
   safeUrl,
@@ -1008,7 +1008,12 @@ exports.handler = async (event) => {
     const isVerify = Boolean(event.queryStringParameters && event.queryStringParameters.verify);
 
     if (isVerify) {
-      const limit = rateLimit("admin-verify:" + getClientIp(event), 20, 15 * 60 * 1000);
+      const limit = await rateLimitPersistent(
+        "admin-verify",
+        getClientIp(event),
+        5,
+        15 * 60 * 1000
+      );
       if (!limit.ok) {
         return json(
           429,

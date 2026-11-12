@@ -21,26 +21,19 @@
     };
     const PAGE_ORDER = ["inflatables", "addons", "silent-disco", "photo-booths"];
 
-    let adminKey = sessionStorage.getItem("mlb_admin_key") || "";
+    const API_LOGIN = "/.netlify/functions/admin-login";
+    const API_LOGOUT = "/.netlify/functions/admin-logout";
+    const API_SESSION = "/.netlify/functions/admin-session";
+
+    /* Older versions stored the admin key in sessionStorage. Remove any
+       leftover copy so an XSS can no longer read it. */
+    try { sessionStorage.removeItem("mlb_admin_key"); } catch (e) {}
+
     let content = null;
 
     /* ============================================
        LOGIN
        ============================================ */
-    async function verifyKey(key) {
-      const res = await fetch(API_CONTENT + "?verify=1", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": key },
-        body: "{}"
-      });
-      if (res.status === 429) {
-        const error = new Error("Too many attempts");
-        error.status = 429;
-        throw error;
-      }
-      return res.ok;
-    }
-
     async function login() {
       const key = document.getElementById("adminKey").value.trim();
       const status = document.getElementById("loginStatus");
@@ -55,30 +48,39 @@
       status.style.color = "var(--color-gray)";
 
       try {
-        if (!(await verifyKey(key))) {
+        const res = await fetch(API_LOGIN, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ key: key })
+        });
+
+        if (res.status === 429) {
+          status.textContent = "Too many attempts. Please wait a few minutes and try again.";
+          status.style.color = "#e63329";
+          return;
+        }
+
+        if (!res.ok) {
           status.textContent = "❌ Invalid admin key";
           status.style.color = "#e63329";
           return;
         }
       } catch (e) {
-        if (e && e.status === 429) {
-          status.textContent = "Too many attempts. Please wait a few minutes and try again.";
-        } else {
-          status.textContent = "❌ Network error";
-        }
+        status.textContent = "❌ Network error";
         status.style.color = "#e63329";
         return;
       }
 
-      adminKey = key;
-      sessionStorage.setItem("mlb_admin_key", key);
+      document.getElementById("adminKey").value = "";
       status.textContent = "";
       await enterPanel();
     }
 
-    function logout() {
-      sessionStorage.removeItem("mlb_admin_key");
-      adminKey = "";
+    async function logout() {
+      try {
+        await fetch(API_LOGOUT, { method: "POST", credentials: "same-origin" });
+      } catch (e) {}
       document.getElementById("panel").style.display = "none";
       document.getElementById("loginBox").style.display = "block";
       document.getElementById("logoutBtn").style.display = "none";
@@ -116,7 +118,7 @@
        CONTENT (banners + products)
        ============================================ */
     async function loadContent() {
-      const res = await fetch(API_CONTENT, { cache: "no-store" });
+      const res = await fetch(API_CONTENT, { cache: "no-store", credentials: "same-origin" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       content = await res.json();
       if (!Array.isArray(content.packages)) content.packages = [];
@@ -128,7 +130,8 @@
 
       const res = await fetch(API_CONTENT, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify(content)
       });
 
@@ -393,7 +396,8 @@
 
       const res = await fetch(API_MEDIA, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify(payload)
       });
 
@@ -1349,11 +1353,9 @@
 
     async function sendAction(action) {
       const status = document.getElementById("status");
-      const key = adminKey;
       const date = document.getElementById("date").value;
       const item = document.getElementById("item").value;
 
-      if (!key) { status.textContent = "❌ Enter your admin key"; status.style.color = "#e63329"; return; }
       if (!item) { status.textContent = "❌ Choose an inflatable"; status.style.color = "#e63329"; return; }
       if (!date) { status.textContent = "❌ Choose a date"; status.style.color = "#e63329"; return; }
 
@@ -1363,12 +1365,14 @@
       try {
         const res = await fetch(API_DATES, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-admin-key": key },
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ item: item, date: date, action: action })
         });
 
         if (res.status === 401) {
-          status.textContent = "❌ Invalid admin key";
+          logout();
+          status.textContent = "❌ Session expired — please log in again";
           status.style.color = "#e63329";
           return;
         }
@@ -1455,8 +1459,8 @@
 
       try {
         const res = await fetch(API_BOOKINGS, {
-          headers: { "x-admin-key": adminKey },
-          cache: "no-store"
+          cache: "no-store",
+          credentials: "same-origin"
         });
 
         if (res.status === 401) { logout(); return; }
@@ -1609,7 +1613,8 @@
           try {
             const res = await fetch(API_BOOKINGS, {
               method: "POST",
-              headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+              headers: { "Content-Type": "application/json" },
+              credentials: "same-origin",
               body: JSON.stringify({ action: "delete", id: id })
             });
 
@@ -1780,7 +1785,8 @@
       try {
         const res = await fetch(API_BOOKINGS, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ action: action, booking: booking })
         });
 
@@ -2010,16 +2016,18 @@
     });
 
     (async function init() {
-      if (adminKey) {
-        try {
-          if (await verifyKey(adminKey)) {
+      try {
+        const res = await fetch(API_SESSION, {
+          cache: "no-store",
+          credentials: "same-origin"
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.authenticated) {
             await enterPanel();
-            return;
           }
-        } catch (e) {}
-        sessionStorage.removeItem("mlb_admin_key");
-        adminKey = "";
-      }
+        }
+      } catch (e) {}
     })();
   
 /* Blocked dates buttons (CSP-safe: no inline onclick) */

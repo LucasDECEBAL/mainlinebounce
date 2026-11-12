@@ -175,7 +175,8 @@ The site is served at `http://localhost:8888`, the admin at
 
 | Variable | Used by | Description |
 | --- | --- | --- |
-| `ADMIN_KEY` | `site-content`, `bookings`, `blocked-dates`, admin login | Secret admin key |
+| `ADMIN_KEY` | admin login, legacy admin endpoints | Secret admin key (32+ characters) |
+| `ADMIN_SESSION_SECRET` | `admin-login`, `admin-session` | HMAC secret for the HttpOnly admin session (32+ random bytes). Falls back to `ADMIN_KEY` if absent. |
 | `NETLIFY_SITE_ID` | all functions | Site ID for Blobs access |
 | `NETLIFY_BLOBS_TOKEN` | all functions | Personal token for Blobs access |
 | `STRIPE_SECRET_KEY` | `create-checkout`, `stripe-webhook` | Stripe secret key |
@@ -187,6 +188,19 @@ The site is served at `http://localhost:8888`, the admin at
 | `DISCORD_WEBHOOK` | `send-booking` | Optional Discord notification webhook |
 
 The Stripe **publishable** key is set in `js/checkout.js`; it is public by design.
+
+### Admin session security
+
+- The admin key is sent **once** to `/.netlify/functions/admin-login` and exchanged for an
+  `HttpOnly`, `Secure`, `SameSite=Strict` cookie (`__Host-mlb_admin`). It is **never** stored in
+  `localStorage`/`sessionStorage`.
+- Sessions last **8 hours**. Rotating `ADMIN_KEY` invalidates every existing session immediately.
+- `admin-login` is limited to **5 attempts / 15 minutes / IP**, stored in Netlify Blobs so the
+  limit is shared across function instances.
+- `/admin` and `/admin.html` use a stricter CSP than the public site: no Google Ads/gtag, no
+  inline scripts, same-origin API calls only.
+- Recommended: set `ADMIN_SESSION_SECRET` to a separate 32+ byte random value. If omitted, the
+  code falls back to `ADMIN_KEY`.
 
 ## Payments flow
 
@@ -214,7 +228,11 @@ independent from the git history.
 
 ## Editing the site
 
-Open `/admin.html` and enter the admin key. Each tab maps to one part of the public site:
+Open `/admin.html` and enter the admin key **once**. The key is exchanged for an HttpOnly
+session cookie; the browser never stores the key itself. After 8 hours (or after logging out),
+enter the key again.
+
+Each tab maps to one part of the public site:
 
 | Tab | What it controls |
 | --- | --- |
@@ -240,8 +258,10 @@ The site handles payments and customer data, so the code follows a few rules:
 
 - **Server-side pricing.** Checkout and pay-on-site totals are rebuilt from the stored
   catalog; prices, names and totals sent by the browser are ignored.
-- **Fail-closed admin auth.** Every admin endpoint requires the `x-admin-key` header,
-  compared in constant time. If `ADMIN_KEY` is missing, requests are rejected.
+- **Fail-closed admin auth.** Admin endpoints require an HttpOnly session cookie
+  (`__Host-mlb_admin`) obtained from `admin-login`; the key itself is never stored in the
+  browser. The legacy `x-admin-key` header is still accepted for a smooth transition.
+  If `ADMIN_KEY` is missing, requests are rejected.
 - **Validated input.** Payloads are size-limited, fields are length-capped, emails and
   dates are checked, and CMS links/images are restricted to safe schemes (`https`,
   `http`, `mailto`, `tel`, relative paths).
@@ -252,18 +272,21 @@ The site handles payments and customer data, so the code follows a few rules:
 - **Stripe webhook verification.** Signatures are verified against the raw body, unpaid
   sessions are ignored and bookings are idempotent per session ID.
 - **Rate limiting.** Checkout, notifications and admin login are throttled per IP.
+  `admin-login` uses a persistent Netlify Blobs counter (5 attempts / 15 min / IP) so the
+  limit is shared across function instances.
 - **Hardened headers.** `netlify.toml` sets CSP, HSTS, `X-Frame-Options: DENY`,
   `X-Content-Type-Options: nosniff`, Referrer-Policy and Permissions-Policy;
-  `/admin` and `/admin.html` are marked `noindex` and `no-store`.
+  `/admin` and `/admin.html` are marked `noindex` and `no-store`, and receive a stricter
+  CSP without Google Ads/gtag or inline scripts.
 - **Static publishing.** Server sources (`/netlify/*`), package metadata and the
   trailer project are blocked with forced 404 responses.
 - **Dependencies.** Node 22, `npm audit` clean, SheetJS served from the repository
   instead of a CDN, and `node_modules/` is no longer committed.
 
-Residual considerations: the CSP still allows `'unsafe-inline'` for scripts and styles
-because the existing pages use inline handlers; the admin key lives in `sessionStorage`;
-rate limits are per function instance. A stricter setup would move inline scripts to
-files and adopt a nonce-based CSP.
+Residual considerations: the public CSP still allows `'unsafe-inline'` for styles and
+Google Ads scripts; the admin CSP is stricter. Other rate limits (checkout, notifications)
+are still per function instance. A stricter setup would move public inline scripts to files,
+adopt a nonce-based CSP, and put Cloudflare Access in front of `/admin`.
 
 ## Trailer video (Remotion)
 

@@ -22,15 +22,19 @@
     Content-Security-Policy = "default-src 'self'; script-src 'self' https://www.googletagmanager.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://www.google.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net https://js.stripe.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https://api.stripe.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://www.google-analytics.com https://region1.google-analytics.com https://*.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://*.google.com https://*.googleadservices.com https://*.g.doubleclick.net https://*.doubleclick.net; frame-src https://js.stripe.com https://hooks.stripe.com https://m.stripe.network https://m.stripe.com https://*.doubleclick.net https://*.google.com https://*.g.doubleclick.net https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'; upgrade-insecure-requests"
 
 # The admin panel is private: keep it out of search engines and caches.
+# It also gets a stricter CSP than the public site: no Google Ads/gtag,
+# no inline scripts, only same-origin API calls.
 [[headers]]
   for = "/admin"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 
 [[headers]]
   for = "/admin.html"
   [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
     X-Robots-Tag = "noindex, nofollow"
     Cache-Control = "no-store"
 

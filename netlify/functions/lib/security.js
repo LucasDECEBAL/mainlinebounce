@@ -29,6 +29,152 @@ function safeEqual(a, b) {
   return same && left.length === right.length;
 }
 
+/* ---- Admin session (HttpOnly cookie) -------------------------------
+   The admin key is only sent once, to admin-login. After that, the
+   browser holds an HttpOnly, SameSite=Strict cookie that JavaScript
+   cannot read. The token is signed with ADMIN_SESSION_SECRET (or
+   ADMIN_KEY as a fallback) and embeds a fingerprint of ADMIN_KEY so
+   rotating the key invalidates every existing session. */
+
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+function isDevContext() {
+  return (
+    process.env.CONTEXT === "dev" ||
+    process.env.NODE_ENV === "development" ||
+    process.env.NETLIFY_DEV === "true"
+  );
+}
+
+function sessionCookieName() {
+  /* __Host- requires Secure + Path=/ + no Domain. In local dev
+     (http://localhost) we use a plain name so the cookie still works. */
+  return isDevContext() ? "mlb_admin_dev" : "__Host-mlb_admin";
+}
+
+function sessionSecret() {
+  return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_KEY || "";
+}
+
+function adminKeyFingerprint() {
+  return crypto
+    .createHash("sha256")
+    .update(process.env.ADMIN_KEY || "")
+    .digest("hex")
+    .slice(0, 16);
+}
+
+function signSession(now) {
+  const secret = sessionSecret();
+  if (!secret) return "";
+
+  const issuedAt = Number(now) || Date.now();
+  const payload = {
+    v: 1,
+    sub: "admin",
+    iat: issuedAt,
+    exp: issuedAt + SESSION_TTL_MS,
+    kv: adminKeyFingerprint(),
+    jti: crypto.randomBytes(12).toString("base64url"),
+  };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update("v1." + encoded)
+    .digest("base64url");
+
+  return "v1." + encoded + "." + signature;
+}
+
+function verifySession(token, now) {
+  if (typeof token !== "string" || !token) return null;
+
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+
+  const secret = sessionSecret();
+  if (!secret) return null;
+
+  const encoded = parts[1];
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update("v1." + encoded)
+    .digest("base64url");
+
+  if (!safeEqual(parts[2], expected)) return null;
+
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  } catch (error) {
+    return null;
+  }
+
+  const current = Number(now) || Date.now();
+  if (!payload || payload.v !== 1 || payload.sub !== "admin") return null;
+  if (typeof payload.exp !== "number" || payload.exp <= current) return null;
+  if (typeof payload.iat !== "number" || payload.iat > current + 60000) return null;
+  if (payload.kv !== adminKeyFingerprint()) return null;
+
+  return payload;
+}
+
+function getCookie(event, name) {
+  const headers = (event && event.headers) || {};
+  const raw = headers.cookie || headers.Cookie || "";
+  if (!raw) return "";
+
+  const parts = String(raw).split(";");
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i];
+    const index = part.indexOf("=");
+    if (index === -1) continue;
+    if (part.slice(0, index).trim() === name) {
+      return part.slice(index + 1).trim();
+    }
+  }
+  return "";
+}
+
+function getAdminSession(event) {
+  return verifySession(getCookie(event, sessionCookieName()));
+}
+
+function sessionCookie(token) {
+  const maxAge = Math.floor(SESSION_TTL_MS / 1000);
+  const secure = isDevContext() ? "" : "; Secure";
+  return (
+    sessionCookieName() +
+    "=" + token +
+    "; Path=/; HttpOnly; SameSite=Strict; Max-Age=" + maxAge + secure
+  );
+}
+
+function clearSessionCookie() {
+  const secure = isDevContext() ? "" : "; Secure";
+  return (
+    sessionCookieName() +
+    "=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0; " +
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT" + secure
+  );
+}
+
+function isTrustedOrigin(event) {
+  const headers = (event && event.headers) || {};
+  const origin = headers.origin || headers.Origin;
+  if (!origin) return true; // curl / server-to-server (no browser CSRF risk)
+
+  /* Local development (netlify dev, http://localhost:8888). */
+  if (isDevContext() && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return true;
+  }
+
+  const allowed = DEFAULT_ORIGINS.concat(
+    [process.env.SITE_URL, process.env.URL, process.env.DEPLOY_PRIME_URL].filter(Boolean)
+  );
+  return allowed.indexOf(origin) !== -1;
+}
+
 function getAdminKey() {
   const key = process.env.ADMIN_KEY || "";
   if (key.length < 16) {
@@ -38,7 +184,9 @@ function getAdminKey() {
   return key;
 }
 
-/* Fail closed: if the server has no ADMIN_KEY, no request is authorized. */
+/* Fail closed: if the server has no ADMIN_KEY, no request is authorized.
+   Accepts either the legacy x-admin-key header (kept for a smooth
+   transition) or the HttpOnly session cookie. */
 function isAdmin(event) {
   const expected = getAdminKey();
   if (!expected) return false;
@@ -50,7 +198,19 @@ function isAdmin(event) {
     headers["X-ADMIN-KEY"] ||
     "";
 
-  return safeEqual(provided, expected);
+  if (provided && safeEqual(provided, expected)) return true;
+
+  const session = getAdminSession(event);
+  if (!session) return false;
+
+  /* Cookie auth is automatic, so require a trusted Origin on writes
+     (defense in depth on top of SameSite=Strict). */
+  const method = String(event.httpMethod || "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    if (!isTrustedOrigin(event)) return false;
+  }
+
+  return true;
 }
 
 function corsHeaders(event) {
@@ -120,6 +280,41 @@ function rateLimit(key, limit, windowMs) {
     ok: entry.count <= limit,
     retryAfter: Math.max(1, Math.ceil((entry.reset - now) / 1000)),
   };
+}
+
+/* Persistent limiter shared across function instances (Netlify Blobs).
+   Falls back to the in-memory limiter if Blobs is unavailable. */
+async function rateLimitPersistent(name, key, limit, windowMs) {
+  const now = Date.now();
+  const bucketKey =
+    "rl/" +
+    String(name).replace(/[^a-z0-9_-]/gi, "-") +
+    "/" +
+    crypto.createHash("sha256").update(String(key)).digest("hex");
+
+  try {
+    const { getStore } = require("@netlify/blobs");
+    const store = getStore({
+      name: "rate-limits",
+      siteID: process.env.NETLIFY_SITE_ID,
+      token: process.env.NETLIFY_BLOBS_TOKEN,
+    });
+
+    let entry = await store.get(bucketKey, { type: "json" });
+    if (!entry || typeof entry.reset !== "number" || now > entry.reset) {
+      entry = { count: 0, reset: now + windowMs };
+    }
+    entry.count += 1;
+    await store.set(bucketKey, JSON.stringify(entry));
+
+    return {
+      ok: entry.count <= limit,
+      retryAfter: Math.max(1, Math.ceil((entry.reset - now) / 1000)),
+    };
+  } catch (error) {
+    console.warn("[security] persistent rate limit fallback:", error.message);
+    return rateLimit(name + ":" + key, limit, windowMs);
+  }
 }
 
 function readRawBody(event) {
@@ -207,12 +402,21 @@ module.exports = {
   DEFAULT_ORIGINS,
   MAX_BODY_BYTES,
   safeEqual,
+  getAdminKey,
   isAdmin,
+  signSession,
+  verifySession,
+  getAdminSession,
+  sessionCookie,
+  clearSessionCookie,
+  sessionCookieName,
+  isTrustedOrigin,
   corsHeaders,
   json,
   noStore,
   getClientIp,
   rateLimit,
+  rateLimitPersistent,
   readJson,
   text,
   line,
